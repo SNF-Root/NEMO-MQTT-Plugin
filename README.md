@@ -41,20 +41,25 @@ pip install -e .[dev]
 
 ## Quick Start
 
-1. **Add to Django settings:**
-   ```python
-   INSTALLED_APPS = [
-       # ... other apps
-       'nemo_mqtt',
-   ]
-   ```
+### **Option 1: Automatic Setup (Recommended)**
 
-2. **Run migrations:**
+1. **Install the plugin:**
    ```bash
-   python manage.py migrate
+   pip install nemo-mqtt-plugin
    ```
 
-3. **Start Redis:**
+2. **Run the setup command:**
+   ```bash
+   cd /path/to/your/nemo-ce
+   python manage.py setup_nemo_integration
+   ```
+
+3. **Run migrations:**
+   ```bash
+   python manage.py migrate nemo_mqtt
+   ```
+
+4. **Start Redis:**
    ```bash
    # Ubuntu/Debian
    sudo systemctl start redis-server
@@ -63,7 +68,7 @@ pip install -e .[dev]
    brew services start redis
    ```
 
-4. **Start MQTT broker:**
+5. **Start MQTT broker:**
    ```bash
    # Using mosquitto
    mosquitto -c /path/to/mosquitto.conf
@@ -72,14 +77,43 @@ pip install -e .[dev]
    docker run -d -p 1883:1883 eclipse-mosquitto
    ```
 
-5. **Start external MQTT service:**
+6. **Start external MQTT service:**
    ```bash
    python -m nemo_mqtt.external_mqtt_service
    ```
 
-6. **Configure MQTT settings:**
+7. **Configure MQTT settings:**
    - Go to Django admin → MQTT Plugin → MQTT Configurations
    - Add your MQTT broker details
+
+### **Option 2: Manual Setup**
+
+1. **Install the plugin:**
+   ```bash
+   pip install nemo-mqtt-plugin
+   ```
+
+2. **Add to Django settings:**
+   ```python
+   INSTALLED_APPS = [
+       # ... other apps
+       'nemo_mqtt',
+   ]
+   ```
+
+3. **Add URLs to NEMO/urls.py:**
+   ```python
+   urlpatterns += [
+       path("mqtt/", include("nemo_mqtt.urls")),
+   ]
+   ```
+
+4. **Run migrations:**
+   ```bash
+   python manage.py migrate nemo_mqtt
+   ```
+
+5. **Continue with steps 4-7 from Option 1**
 
 ## Configuration
 

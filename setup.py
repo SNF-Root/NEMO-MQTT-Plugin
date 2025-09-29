@@ -29,7 +29,6 @@ setup(
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.8",
@@ -58,6 +57,11 @@ setup(
     include_package_data=True,
     zip_safe=False,
     keywords="nemo mqtt django plugin iot real-time",
+    entry_points={
+        'console_scripts': [
+            'nemo-mqtt-setup=install_nemo_integration:main',
+        ],
+    },
     project_urls={
         "Bug Reports": "https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues",
         "Source": "https://github.com/SNF-Root/NEMO-MQTT-Plugin",

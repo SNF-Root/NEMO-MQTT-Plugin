@@ -18,7 +18,6 @@ keywords = ["nemo", "mqtt", "django", "plugin", "iot", "real-time"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",
@@ -55,7 +54,15 @@ Repository = "https://github.com/SNF-Root/NEMO-MQTT-Plugin.git"
 "Bug Tracker" = "https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues"
 
 [tool.setuptools]
-packages = ["nemo_mqtt", "nemo_mqtt.migrations", "nemo_mqtt.monitoring", "nemo_mqtt.templates", "nemo_mqtt.templates.customizations"]
+packages = [
+    "nemo_mqtt", 
+    "nemo_mqtt.migrations", 
+    "nemo_mqtt.monitoring", 
+    "nemo_mqtt.templates", 
+    "nemo_mqtt.templates.customizations",
+    "nemo_mqtt.management",
+    "nemo_mqtt.management.commands"
+]
 
 [tool.setuptools.package-data]
 nemo_mqtt = [

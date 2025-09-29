@@ -1,9 +1,12 @@
 LICENSE
 MANIFEST.in
 README.md
+install_nemo_integration.py
 pyproject.toml
 requirements.txt
 setup.py
+dist/nemo_mqtt_plugin-1.0.0-py3-none-any.whl
+dist/nemo_mqtt_plugin-1.0.0.tar.gz
 nemo_mqtt/__init__.py
 nemo_mqtt/admin.py
 nemo_mqtt/apps.py
@@ -21,6 +24,9 @@ nemo_mqtt/test_mqtt.py
 nemo_mqtt/urls.py
 nemo_mqtt/utils.py
 nemo_mqtt/views.py
+nemo_mqtt/management/__init__.py
+nemo_mqtt/management/commands/__init__.py
+nemo_mqtt/management/commands/setup_nemo_integration.py
 nemo_mqtt/migrations/0001_initial.py
 nemo_mqtt/migrations/0002_mqttconfiguration_ca_cert_content_and_more.py
 nemo_mqtt/migrations/__init__.py

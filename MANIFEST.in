@@ -19,6 +19,12 @@ include nemo_mqtt/*.txt
 # Include monitoring files
 recursive-include nemo_mqtt/monitoring *
 
+# Include management commands
+recursive-include nemo_mqtt/management *
+
+# Include installation script
+include install_nemo_integration.py
+
 # Exclude Python cache files
 global-exclude *.pyc
 global-exclude *.pyo
