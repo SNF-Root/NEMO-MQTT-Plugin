@@ -1,0 +1,31 @@
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+include setup.py
+
+# Include Django templates
+recursive-include nemo_mqtt/templates *
+
+# Include migrations
+recursive-include nemo_mqtt/migrations *
+
+# Include service files
+include nemo_mqtt/*.service
+
+# Include requirements files
+include nemo_mqtt/*.txt
+
+# Include monitoring files
+recursive-include nemo_mqtt/monitoring *
+
+# Exclude Python cache files
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude __pycache__
+global-exclude .DS_Store
+
+# Exclude test files
+exclude test_*.py
+exclude *_test.py
+exclude tests/

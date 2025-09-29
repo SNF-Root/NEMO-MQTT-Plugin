@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nemo-mqtt-plugin"
+dynamic = ["version"]
+description = "MQTT integration plugin for NEMO tool usage events"
+readme = "README.md"
+license = "MIT"
+authors = [
+    {name = "SNF-Root", email = "alexdenton998@gmail.com"}
+]
+maintainers = [
+    {name = "SNF-Root", email = "alexdenton998@gmail.com"}
+]
+keywords = ["nemo", "mqtt", "django", "plugin", "iot", "real-time"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Framework :: Django",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Networking",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "paho-mqtt>=1.6.1",
+    "Django>=3.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0",
+    "pytest-django>=4.0",
+    "black>=22.0",
+    "flake8>=4.0",
+    "isort>=5.0",
+]
+monitoring = [
+    "redis>=4.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/SNF-Root/NEMO-MQTT-Plugin"
+Documentation = "https://github.com/SNF-Root/NEMO-MQTT-Plugin#readme"
+Repository = "https://github.com/SNF-Root/NEMO-MQTT-Plugin.git"
+"Bug Tracker" = "https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues"
+
+[tool.setuptools]
+packages = ["nemo_mqtt", "nemo_mqtt.migrations", "nemo_mqtt.monitoring", "nemo_mqtt.templates", "nemo_mqtt.templates.customizations"]
+
+[tool.setuptools.package-data]
+nemo_mqtt = [
+    "templates/**/*",
+    "migrations/**/*",
+    "*.service",
+    "*.txt",
+]
+
+[tool.setuptools_scm]
+write_to = "nemo_mqtt/_version.py"
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+line_length = 88
+known_django = "django"
+known_first_party = "nemo_mqtt"
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "test_settings"
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-v --tb=short"
