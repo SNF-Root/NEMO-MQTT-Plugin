@@ -48,11 +48,25 @@ class RedisMQTTPublisher:
         Returns:
             bool: True if published successfully, False otherwise
         """
+        import uuid
+        redis_id = str(uuid.uuid4())[:8]
+        
+        print(f"\n🔍 [REDIS-{redis_id}] Starting Redis publish process")
+        print(f"   Topic: {topic}")
+        print(f"   QoS: {qos}")
+        print(f"   Retain: {retain}")
+        print(f"   Payload: {payload[:200]}{'...' if len(payload) > 200 else ''}")
+        
         if not self.redis_client:
+            print(f"❌ [REDIS-{redis_id}] Redis client not available")
             logger.error("Redis client not available")
             return False
         
         try:
+            # Test Redis connection first
+            self.redis_client.ping()
+            print(f"🔍 [REDIS-{redis_id}] Redis connection test successful")
+            
             event = {
                 'topic': topic,
                 'payload': payload,
@@ -61,13 +75,21 @@ class RedisMQTTPublisher:
                 'timestamp': time.time()
             }
             
+            print(f"🔍 [REDIS-{redis_id}] Event object created, pushing to Redis list...")
+            
             # Publish to Redis list
-            self.redis_client.lpush('nemo_mqtt_events', json.dumps(event))
-            print(f"📤 Redis lpush successful: {topic}")
+            result = self.redis_client.lpush('NEMO_mqtt_events', json.dumps(event))
+            print(f"📤 [REDIS-{redis_id}] Redis lpush successful: {topic} (list length: {result})")
             logger.debug(f"Published event to Redis: {topic}")
+            
+            # Verify the message was added
+            list_length = self.redis_client.llen('NEMO_mqtt_events')
+            print(f"🔍 [REDIS-{redis_id}] Redis list 'NEMO_mqtt_events' now has {list_length} messages")
+            
             return True
             
         except Exception as e:
+            print(f"❌ [REDIS-{redis_id}] Failed to publish event to Redis: {e}")
             logger.error(f"Failed to publish event to Redis: {e}")
             return False
     

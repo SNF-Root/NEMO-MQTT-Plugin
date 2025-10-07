@@ -41,7 +41,20 @@ pip install -e .[dev]
 
 ## Quick Start
 
-### **Option 1: Automatic Setup (Recommended)**
+### **Option 1: One-Liner Installation (Easiest)**
+
+```bash
+python install_standalone.py --nemo-path /path/to/your/nemo-ce
+```
+
+This single command will:
+- Install the Python package
+- Add to Django INSTALLED_APPS
+- Configure URL patterns
+- Run database migrations
+- Verify the installation
+
+### **Option 2: Automatic Setup (Recommended)**
 
 1. **Install the plugin:**
    ```bash

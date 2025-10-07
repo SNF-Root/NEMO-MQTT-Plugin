@@ -25,7 +25,7 @@ setup(
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     url="https://github.com/SNF-Root/NEMO-MQTT-Plugin",
-    packages=find_packages(),
+    packages=['NEMO_mqtt', 'NEMO_mqtt.migrations', 'NEMO_mqtt.monitoring', 'NEMO_mqtt.management', 'NEMO_mqtt.management.commands'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",
@@ -49,9 +49,6 @@ setup(
             "black>=22.0",
             "flake8>=4.0",
             "isort>=5.0",
-        ],
-        "monitoring": [
-            "redis>=4.0",
         ],
     },
     include_package_data=True,

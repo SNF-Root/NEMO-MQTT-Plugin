@@ -48,26 +48,26 @@ def backup_file(file_path):
 
 
 def add_to_installed_apps(settings_file):
-    """Add nemo_mqtt to INSTALLED_APPS"""
+    """Add NEMO_mqtt to INSTALLED_APPS"""
     with open(settings_file, 'r') as f:
         content = f.read()
     
     # Check if already added
-    if "'nemo_mqtt'" in content or '"nemo_mqtt"' in content:
-        print(f"✅ nemo_mqtt already in INSTALLED_APPS in {settings_file}")
+    if "'NEMO_mqtt'" in content or '"NEMO_mqtt"' in content:
+        print(f"✅ NEMO_mqtt already in INSTALLED_APPS in {settings_file}")
         return True
     
-    # Find INSTALLED_APPS and add nemo_mqtt
+    # Find INSTALLED_APPS and add NEMO_mqtt
     pattern = r'(INSTALLED_APPS\s*=\s*\[[^\]]*)(\]\s*$)'
     match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
     
     if match:
-        # Add nemo_mqtt before the closing bracket
-        new_content = content[:match.start(2)] + "    'nemo_mqtt',\n" + match.group(2)
+        # Add NEMO_mqtt before the closing bracket
+        new_content = content[:match.start(2)] + "    'NEMO_mqtt',\n" + match.group(2)
         
         with open(settings_file, 'w') as f:
             f.write(new_content)
-        print(f"✅ Added nemo_mqtt to INSTALLED_APPS in {settings_file}")
+        print(f"✅ Added NEMO_mqtt to INSTALLED_APPS in {settings_file}")
         return True
     else:
         print(f"⚠️  Could not find INSTALLED_APPS in {settings_file}")
@@ -86,7 +86,7 @@ def add_mqtt_urls(nemo_path):
         content = f.read()
     
     # Check if already added
-    if "nemo_mqtt.urls" in content:
+    if "NEMO_mqtt.urls" in content:
         print(f"✅ MQTT URLs already added to {urls_file}")
         return True
     
@@ -99,7 +99,7 @@ def add_mqtt_urls(nemo_path):
         mqtt_urls = f"""
     # Add MQTT plugin URLs
     urlpatterns += [
-        path("mqtt/", include("nemo_mqtt.urls")),
+        path("mqtt/", include("NEMO_mqtt.urls")),
     ]"""
         new_content = content[:match.end()] + mqtt_urls + content[match.end():]
     else:
@@ -112,7 +112,7 @@ def add_mqtt_urls(nemo_path):
             "",
             "    # Add MQTT plugin URLs",
             "    urlpatterns += [",
-            "        path(\"mqtt/\", include(\"nemo_mqtt.urls\")),",
+            "        path(\"mqtt/\", include(\"NEMO_mqtt.urls\")),",
             "    ]"
         ]
         lines.extend(mqtt_urls)
@@ -130,19 +130,19 @@ def add_logging_config(settings_file):
         content = f.read()
     
     # Check if logging already configured
-    if "'nemo_mqtt'" in content and "loggers" in content:
+    if "'NEMO_mqtt'" in content and "loggers" in content:
         print(f"✅ MQTT logging already configured in {settings_file}")
         return True
     
     # Look for existing LOGGING configuration
     if "LOGGING" in content:
-        # Add nemo_mqtt logger to existing configuration
+        # Add NEMO_mqtt logger to existing configuration
         pattern = r'(\s+)(\'loggers\':\s*\{[^}]*)(\})'
         match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
         
         if match:
             logger_config = """
-        'nemo_mqtt': {
+        'NEMO_mqtt': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
@@ -201,7 +201,7 @@ def main():
     
     print(f"\n🎉 Installation complete! Modified {success_count} files.")
     print("\n📋 Next steps:")
-    print("1. Run migrations: python manage.py migrate nemo_mqtt")
+    print("1. Run migrations: python manage.py migrate NEMO_mqtt")
     print("2. Start NEMO: python manage.py runserver")
     print("3. Configure MQTT in Django admin")
 

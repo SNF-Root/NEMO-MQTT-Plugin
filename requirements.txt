@@ -2,7 +2,7 @@
 paho-mqtt>=1.6.1
 Django>=3.2
 
-# Optional dependencies for monitoring
+# Monitoring dependencies (required for web monitoring)
 redis>=4.0
 
 # Development dependencies (install with: pip install -e .[dev])

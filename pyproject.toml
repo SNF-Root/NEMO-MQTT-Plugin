@@ -7,7 +7,7 @@ name = "nemo-mqtt-plugin"
 dynamic = ["version"]
 description = "MQTT integration plugin for NEMO tool usage events"
 readme = "README.md"
-license = "MIT"
+license = {text = "MIT"}
 authors = [
     {name = "SNF-Root", email = "alexdenton998@gmail.com"}
 ]
@@ -33,6 +33,7 @@ requires-python = ">=3.8"
 dependencies = [
     "paho-mqtt>=1.6.1",
     "Django>=3.2",
+    "redis>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -43,9 +44,6 @@ dev = [
     "flake8>=4.0",
     "isort>=5.0",
 ]
-monitoring = [
-    "redis>=4.0",
-]
 
 [project.urls]
 Homepage = "https://github.com/SNF-Root/NEMO-MQTT-Plugin"
@@ -55,17 +53,17 @@ Repository = "https://github.com/SNF-Root/NEMO-MQTT-Plugin.git"
 
 [tool.setuptools]
 packages = [
-    "nemo_mqtt", 
-    "nemo_mqtt.migrations", 
-    "nemo_mqtt.monitoring", 
-    "nemo_mqtt.templates", 
-    "nemo_mqtt.templates.customizations",
-    "nemo_mqtt.management",
-    "nemo_mqtt.management.commands"
+    "NEMO_mqtt", 
+    "NEMO_mqtt.migrations", 
+    "NEMO_mqtt.monitoring", 
+    "NEMO_mqtt.templates", 
+    "NEMO_mqtt.templates.customizations",
+    "NEMO_mqtt.management",
+    "NEMO_mqtt.management.commands"
 ]
 
 [tool.setuptools.package-data]
-nemo_mqtt = [
+NEMO_mqtt = [
     "templates/**/*",
     "migrations/**/*",
     "*.service",
@@ -73,7 +71,7 @@ nemo_mqtt = [
 ]
 
 [tool.setuptools_scm]
-write_to = "nemo_mqtt/_version.py"
+write_to = "NEMO_mqtt/_version.py"
 
 [tool.black]
 line-length = 88
@@ -98,7 +96,7 @@ profile = "black"
 multi_line_output = 3
 line_length = 88
 known_django = "django"
-known_first_party = "nemo_mqtt"
+known_first_party = "NEMO_mqtt"
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
 
 [tool.pytest.ini_options]

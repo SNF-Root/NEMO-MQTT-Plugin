@@ -33,18 +33,28 @@ class MQTTSignalHandler:
     
     def publish_message(self, topic, data):
         """Publish a message via Redis to external MQTT service"""
+        import uuid
+        signal_id = str(uuid.uuid4())[:8]
+        
+        print(f"\n🔍 [SIGNAL-{signal_id}] Starting message publish process")
+        print(f"   Topic: {topic}")
+        print(f"   Data: {json.dumps(data, indent=2)}")
+        
         if self.redis_publisher:
             try:
+                print(f"🔍 [SIGNAL-{signal_id}] Redis publisher available, calling publish_event...")
                 success = self.redis_publisher.publish_event(topic, json.dumps(data))
                 if success:
-                    print(f"✅ Published to Redis: {topic}")
+                    print(f"✅ [SIGNAL-{signal_id}] Successfully published to Redis: {topic}")
+                    logger.info(f"Successfully published to Redis: {topic}")
                 else:
-                    print(f"❌ Failed to publish to Redis: {topic}")
+                    print(f"❌ [SIGNAL-{signal_id}] Failed to publish to Redis: {topic}")
+                    logger.error(f"Failed to publish to Redis: {topic}")
             except Exception as e:
-                print(f"❌ Exception publishing to Redis: {e}")
+                print(f"❌ [SIGNAL-{signal_id}] Exception publishing to Redis: {e}")
                 logger.error(f"Failed to publish MQTT message via Redis: {e}")
         else:
-            print("❌ Redis publisher not available")
+            print(f"❌ [SIGNAL-{signal_id}] Redis publisher not available")
             logger.warning("Redis publisher not available")
 
 
@@ -58,6 +68,13 @@ print(f"🔧 MQTT Signal Handler initialized: {id(signal_handler)}")
 @receiver(post_save, sender=Tool)
 def tool_saved(sender, instance, created, **kwargs):
     """Signal handler for tool save events"""
+    import uuid
+    signal_id = str(uuid.uuid4())[:8]
+    print(f"\n🔍 [TOOL-SIGNAL-{signal_id}] Tool save event triggered")
+    print(f"   Tool: {instance.name} (ID: {instance.id})")
+    print(f"   Created: {created}")
+    print(f"   Operational: {instance.operational}")
+    
     if signal_handler.redis_publisher:
         action = "created" if created else "updated"
         data = {
@@ -67,7 +84,10 @@ def tool_saved(sender, instance, created, **kwargs):
             "tool_status": instance.operational,
             "timestamp": instance._state.adding
         }
+        print(f"🔍 [TOOL-SIGNAL-{signal_id}] Publishing tool_{action} event...")
         signal_handler.publish_message(f"nemo/tools/{instance.id}", data)
+    else:
+        print(f"❌ [TOOL-SIGNAL-{signal_id}] Redis publisher not available")
 
 
 @receiver(post_save, sender=Area)

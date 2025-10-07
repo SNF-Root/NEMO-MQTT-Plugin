@@ -1,5 +1,6 @@
 paho-mqtt>=1.6.1
 Django>=3.2
+redis>=4.0
 
 [dev]
 pytest>=6.0
@@ -7,6 +8,3 @@ pytest-django>=4.0
 black>=22.0
 flake8>=4.0
 isort>=5.0
-
-[monitoring]
-redis>=4.0
