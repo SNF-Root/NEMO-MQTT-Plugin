@@ -94,17 +94,14 @@ else
     pip install redis paho-mqtt
 fi
 
-# Start the external MQTT service
-echo "🚀 Starting External MQTT Service..."
-echo "⚠️  Note: External MQTT service needs to run from NEMO-CE directory"
-echo "   Please run this from your NEMO-CE installation directory:"
-echo "   cd /path/to/your/nemo-ce"
-echo "   python NEMO/plugins/mqtt/external_mqtt_service.py"
+# Start the standalone MQTT service (for development)
+echo "🚀 Starting Standalone MQTT Service (Development Mode)..."
+echo "📋 Note: This uses hardcoded configuration for development"
+echo "   For production, install plugin in NEMO-CE and use external_mqtt_service.py"
 echo ""
-echo "   For now, starting a simple fallback service..."
-python simple_mqtt_service.py &
+python standalone_mqtt_service.py &
 MQTT_SERVICE_PID=$!
-echo "✅ Simple MQTT Service started (PID: $MQTT_SERVICE_PID)"
+echo "✅ Standalone MQTT Service started (PID: $MQTT_SERVICE_PID)"
 
 # Wait a moment for the service to start
 sleep 3
@@ -121,7 +118,7 @@ echo "================================"
 echo "📋 Services running:"
 echo "   - Redis server"
 echo "   - MQTT broker"
-echo "   - External MQTT Service (PID: $MQTT_SERVICE_PID)"
+echo "   - Standalone MQTT Service (PID: $MQTT_SERVICE_PID)"
 echo "   - MQTT Monitor (PID: $MONITOR_PID)"
 echo ""
 echo "💡 Try enabling/disabling tools in NEMO to see MQTT messages!"

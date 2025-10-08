@@ -87,7 +87,7 @@ pip install -e .[dev]
 ### **Option 1: One-Liner Installation (Easiest)**
 
 ```bash
-python install.py --nemo-path /path/to/your/nemo-ce
+python install_standalone.py --nemo-path /path/to/your/nemo-ce
 ```
 
 This single command will:

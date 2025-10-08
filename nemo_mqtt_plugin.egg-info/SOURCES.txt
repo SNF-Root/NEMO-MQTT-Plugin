@@ -1,12 +1,18 @@
 LICENSE
 MANIFEST.in
 README.md
+dump.rdb
 install_nemo_integration.py
+install_standalone.py
 monitor_messages.py
 monitor_requirements.txt
 pyproject.toml
 requirements.txt
+requirements_simple.txt
 setup.py
+start_mqtt_system.sh
+stop_mqtt_system.sh
+test_mqtt_flow.sh
 NEMO_mqtt/__init__.py
 NEMO_mqtt/admin.py
 NEMO_mqtt/apps.py
@@ -28,6 +34,7 @@ NEMO_mqtt/management/__init__.py
 NEMO_mqtt/management/commands/__init__.py
 NEMO_mqtt/management/commands/install_mqtt_plugin.py
 NEMO_mqtt/management/commands/setup_nemo_integration.py
+NEMO_mqtt/management/commands/test_mqtt_api.py
 NEMO_mqtt/migrations/0001_initial.py
 NEMO_mqtt/migrations/0002_mqttconfiguration_ca_cert_content_and_more.py
 NEMO_mqtt/migrations/__init__.py
@@ -37,6 +44,7 @@ NEMO_mqtt/monitoring/redis_checker.py
 NEMO_mqtt/monitoring/run_monitor.py
 NEMO_mqtt/templates/NEMO_mqtt/monitor.html
 NEMO_mqtt/templates/customizations/customizations_mqtt.html
+dist/nemo-mqtt-plugin-1.0.0.tar.gz
 dist/nemo_mqtt_plugin-1.0.0-py3-none-any.whl
 nemo_mqtt/mqtt_requirements.txt
 nemo_mqtt/nemo-mqtt.service
@@ -45,6 +53,7 @@ nemo_mqtt/management/__init__.py
 nemo_mqtt/management/commands/__init__.py
 nemo_mqtt/management/commands/install_mqtt_plugin.py
 nemo_mqtt/management/commands/setup_nemo_integration.py
+nemo_mqtt/management/commands/test_mqtt_api.py
 nemo_mqtt/migrations/0001_initial.py
 nemo_mqtt/migrations/0002_mqttconfiguration_ca_cert_content_and_more.py
 nemo_mqtt/migrations/__init__.py

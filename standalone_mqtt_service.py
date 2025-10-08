@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-External MQTT Service for NEMO
-This service runs independently of Django and maintains a persistent MQTT connection.
-It consumes events from Redis and publishes them to the MQTT broker.
+Standalone MQTT Service for Development
+This service works without Django/NEMO for development and testing.
+Uses hardcoded configuration that can be easily modified.
 """
 
 import os
@@ -12,21 +12,8 @@ import json
 import logging
 import signal
 import threading
-from typing import Optional, Dict, Any
-
-# Add Django project to path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
-
-# Set Django settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings_dev')
-
-import django
-django.setup()
-
 import redis
 import paho.mqtt.client as mqtt
-from NEMO.plugins.NEMO_mqtt.models import MQTTConfiguration
-from NEMO.plugins.NEMO_mqtt.utils import get_mqtt_config
 
 # Configure logging
 logging.basicConfig(
@@ -35,16 +22,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-class ExternalMQTTService:
-    """Standalone MQTT service that maintains persistent connection"""
+class StandaloneMQTTService:
+    """Standalone MQTT service for development - no Django dependencies"""
     
     def __init__(self):
         self.mqtt_client = None
         self.redis_client = None
         self.running = False
-        self.config = None
         self.thread = None
-        self.lock = threading.Lock()
+        
+        # MQTT Configuration (modify these for your setup)
+        self.config = {
+            'broker_host': 'localhost',
+            'broker_port': 1883,
+            'username': None,  # Set if your broker requires auth
+            'password': None,  # Set if your broker requires auth
+            'use_tls': False,
+            'keepalive': 60,
+            'client_id': 'nemo_dev_client'
+        }
         
         # Signal handlers for graceful shutdown
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -59,21 +55,13 @@ class ExternalMQTTService:
     def start(self):
         """Start the MQTT service"""
         try:
-            print("🚀 Starting External MQTT Service")
-            print("=" * 50)
-            
-            # Get MQTT configuration from Django
-            print("🔍 Loading MQTT configuration from Django...")
-            self.config = get_mqtt_config()
-            if not self.config or not self.config.enabled:
-                print("❌ No enabled MQTT configuration found")
-                logger.error("No enabled MQTT configuration found")
-                return False
-            
-            print(f"✅ MQTT configuration loaded: {self.config.name}")
-            print(f"   Broker: {self.config.broker_host}:{self.config.broker_port}")
-            print(f"   TLS: {'Yes' if self.config.use_tls else 'No'}")
-            print(f"   Auth: {'Yes' if self.config.username else 'No'}")
+            print("🚀 Starting Standalone MQTT Service (Development Mode)")
+            print("=" * 60)
+            print("📋 Configuration:")
+            print(f"   Broker: {self.config['broker_host']}:{self.config['broker_port']}")
+            print(f"   Auth: {'Yes' if self.config['username'] else 'No'}")
+            print(f"   TLS: {'Yes' if self.config['use_tls'] else 'No'}")
+            print("=" * 60)
             
             # Initialize Redis client
             print("🔍 Connecting to Redis...")
@@ -98,10 +86,10 @@ class ExternalMQTTService:
             self.thread = threading.Thread(target=self._run, daemon=True)
             self.thread.start()
             
-            print("✅ External MQTT service started successfully")
+            print("✅ Standalone MQTT service started successfully")
             print("📋 Consuming from Redis → Publishing to MQTT")
-            print("=" * 50)
-            logger.info("External MQTT service started successfully")
+            print("=" * 60)
+            logger.info("Standalone MQTT service started successfully")
             return True
             
         except Exception as e:
@@ -114,7 +102,7 @@ class ExternalMQTTService:
         try:
             # Create unique client ID
             import socket
-            client_id = f"nemo_external_{socket.gethostname()}_{os.getpid()}"
+            client_id = f"{self.config['client_id']}_{socket.gethostname()}_{os.getpid()}"
             print(f"   Client ID: {client_id}")
             
             # Create MQTT client
@@ -126,28 +114,25 @@ class ExternalMQTTService:
             self.mqtt_client.on_publish = self._on_publish
             
             # Set authentication if configured
-            if self.config.username and self.config.password:
-                print(f"   Authentication: {self.config.username}")
-                self.mqtt_client.username_pw_set(self.config.username, self.config.password)
+            if self.config['username'] and self.config['password']:
+                print(f"   Authentication: {self.config['username']}")
+                self.mqtt_client.username_pw_set(self.config['username'], self.config['password'])
             else:
                 print("   Authentication: None")
             
             # Set TLS if configured
-            if self.config.use_tls:
+            if self.config['use_tls']:
                 print("   TLS: Enabled")
                 import ssl
                 context = ssl.create_default_context()
-                if not getattr(self.config, 'verify_tls', True):
-                    context.check_hostname = False
-                    context.verify_mode = ssl.CERT_NONE
                 self.mqtt_client.tls_set_context(context)
             else:
                 print("   TLS: Disabled")
             
             # Connect to broker
-            broker_host = self.config.broker_host or 'localhost'
-            broker_port = self.config.broker_port or 1883
-            keepalive = self.config.keepalive or 60
+            broker_host = self.config['broker_host']
+            broker_port = self.config['broker_port']
+            keepalive = self.config['keepalive']
             
             print(f"   Connecting to: {broker_host}:{broker_port}")
             self.mqtt_client.connect(broker_host, broker_port, keepalive)
@@ -175,24 +160,10 @@ class ExternalMQTTService:
         if rc != 0:
             print(f"⚠️  MQTT broker disconnected: {rc}")
             logger.warning(f"Unexpected disconnection from MQTT broker. Return code: {rc}")
-            # Attempt to reconnect
-            self._reconnect()
     
     def _on_publish(self, client, userdata, mid):
         """MQTT publish callback"""
         logger.debug(f"Message published with mid: {mid}")
-    
-    def _reconnect(self):
-        """Attempt to reconnect to MQTT broker"""
-        try:
-            if self.mqtt_client and not self.mqtt_client.is_connected():
-                print("🔍 Attempting to reconnect to MQTT broker...")
-                self.mqtt_client.reconnect()
-                print("✅ Reconnected to MQTT broker")
-                logger.info("Reconnected to MQTT broker")
-        except Exception as e:
-            print(f"❌ Failed to reconnect to MQTT broker: {e}")
-            logger.error(f"Failed to reconnect to MQTT broker: {e}")
     
     def _run(self):
         """Main service loop - consumes events from Redis and publishes to MQTT"""
@@ -230,79 +201,134 @@ class ExternalMQTTService:
                 logger.error(f"Error in service loop: {e}")
                 time.sleep(1)
     
+    def _reconnect(self):
+        """Attempt to reconnect to MQTT broker"""
+        try:
+            if self.mqtt_client and not self.mqtt_client.is_connected():
+                print("🔍 Attempting to reconnect to MQTT broker...")
+                self.mqtt_client.reconnect()
+                print("✅ Reconnected to MQTT broker")
+                logger.info("Reconnected to MQTT broker")
+        except Exception as e:
+            print(f"❌ Failed to reconnect to MQTT broker: {e}")
+            logger.error(f"Failed to reconnect to MQTT broker: {e}")
+    
     def _process_event(self, event_data: str):
         """Process a single event from Redis"""
         import uuid
         mqtt_id = str(uuid.uuid4())[:8]
         
-        print(f"\n🔍 [MQTT-{mqtt_id}] Processing event from Redis")
-        print(f"   Raw data: {event_data[:200]}{'...' if len(event_data) > 200 else ''}")
+        print(f"\n" + "="*80)
+        print(f"🔍 [MQTT-{mqtt_id}] PROCESSING EVENT FROM REDIS")
+        print(f"="*80)
+        print(f"📥 Raw Redis data: {event_data}")
+        print(f"📏 Data length: {len(event_data)} characters")
         
         try:
             event = json.loads(event_data)
-            print(f"🔍 [MQTT-{mqtt_id}] Event parsed successfully")
-            print(f"   Event: {json.dumps(event, indent=2)}")
+            print(f"✅ [MQTT-{mqtt_id}] JSON parsing successful")
+            print(f"📋 Parsed event: {json.dumps(event, indent=2)}")
             
             topic = event.get('topic')
             payload = event.get('payload')
             qos = event.get('qos', 0)
             retain = event.get('retain', False)
+            event_id = event.get('id', 'unknown')
             
-            print(f"🔍 [MQTT-{mqtt_id}] Extracted values:")
-            print(f"   Topic: {topic}")
-            print(f"   QoS: {qos}")
-            print(f"   Retain: {retain}")
-            print(f"   Payload: {payload[:200]}{'...' if len(str(payload)) > 200 else ''}")
+            print(f"\n🔍 [MQTT-{mqtt_id}] EXTRACTED VALUES:")
+            print(f"   📍 Topic: '{topic}'")
+            print(f"   📦 Payload: '{payload}'")
+            print(f"   🎯 QoS: {qos}")
+            print(f"   🔒 Retain: {retain}")
+            print(f"   🆔 Event ID: {event_id}")
+            print(f"   📏 Payload length: {len(str(payload))} characters")
             
             if topic and payload is not None:
-                print(f"🔍 [MQTT-{mqtt_id}] Valid event data, publishing to MQTT...")
+                print(f"\n🚀 [MQTT-{mqtt_id}] PUBLISHING TO MQTT BROKER...")
+                print(f"   📍 Publishing to topic: '{topic}'")
+                print(f"   📦 Payload: {str(payload)[:100]}{'...' if len(str(payload)) > 100 else ''}")
+                
                 self._publish_to_mqtt(topic, payload, qos, retain)
-                print(f"✅ [MQTT-{mqtt_id}] Published event to MQTT: {topic}")
+                print(f"✅ [MQTT-{mqtt_id}] SUCCESSFULLY PUBLISHED TO MQTT")
+                print(f"   📍 Topic: {topic}")
                 logger.info(f"Published event to MQTT: {topic}")
             else:
-                print(f"❌ [MQTT-{mqtt_id}] Invalid event data - missing topic or payload")
+                print(f"❌ [MQTT-{mqtt_id}] INVALID EVENT DATA")
+                print(f"   Topic valid: {bool(topic)}")
+                print(f"   Payload valid: {payload is not None}")
                 logger.warning(f"Invalid event data: {event}")
                 
         except json.JSONDecodeError as e:
-            print(f"❌ [MQTT-{mqtt_id}] Failed to parse event data: {e}")
+            print(f"❌ [MQTT-{mqtt_id}] JSON PARSE ERROR")
+            print(f"   Error: {e}")
+            print(f"   Raw data: {event_data}")
             logger.error(f"Failed to parse event data: {e}")
         except Exception as e:
-            print(f"❌ [MQTT-{mqtt_id}] Failed to process event: {e}")
+            print(f"❌ [MQTT-{mqtt_id}] PROCESSING ERROR")
+            print(f"   Error: {e}")
+            print(f"   Event data: {event_data}")
             logger.error(f"Failed to process event: {e}")
+        
+        print(f"="*80)
     
     def _publish_to_mqtt(self, topic: str, payload: str, qos: int = 0, retain: bool = False):
         """Publish message to MQTT broker"""
         import uuid
         publish_id = str(uuid.uuid4())[:8]
         
-        print(f"\n🔍 [PUBLISH-{publish_id}] Attempting to publish to MQTT broker")
-        print(f"   Topic: {topic}")
-        print(f"   QoS: {qos}")
-        print(f"   Retain: {retain}")
-        print(f"   Payload: {payload[:200]}{'...' if len(payload) > 200 else ''}")
+        print(f"\n" + "="*80)
+        print(f"🚀 [PUBLISH-{publish_id}] PUBLISHING TO MQTT BROKER")
+        print(f"="*80)
+        print(f"📍 Topic: '{topic}'")
+        print(f"🎯 QoS: {qos}")
+        print(f"🔒 Retain: {retain}")
+        print(f"📦 Payload: {payload}")
+        print(f"📏 Payload length: {len(payload)} characters")
+        
+        # Check MQTT client status
+        print(f"\n🔍 [PUBLISH-{publish_id}] MQTT CLIENT STATUS:")
+        print(f"   Client exists: {self.mqtt_client is not None}")
+        if self.mqtt_client:
+            print(f"   Client connected: {self.mqtt_client.is_connected()}")
+            print(f"   Client ID: {getattr(self.mqtt_client, '_client_id', 'unknown')}")
         
         try:
             if self.mqtt_client and self.mqtt_client.is_connected():
-                print(f"🔍 [PUBLISH-{publish_id}] MQTT client is connected, publishing...")
+                print(f"\n🚀 [PUBLISH-{publish_id}] ATTEMPTING TO PUBLISH...")
                 result = self.mqtt_client.publish(topic, payload, qos=qos, retain=retain)
-                print(f"🔍 [PUBLISH-{publish_id}] Publish result: {result}")
+                
+                print(f"\n📊 [PUBLISH-{publish_id}] PUBLISH RESULT:")
+                print(f"   Result object: {result}")
                 print(f"   Message ID: {result.mid}")
                 print(f"   Return code: {result.rc}")
+                print(f"   Is published: {result.is_published()}")
                 
-                if result.rc != mqtt.MQTT_ERR_SUCCESS:
-                    print(f"❌ [PUBLISH-{publish_id}] Failed to publish message: {result.rc}")
-                    logger.error(f"Failed to publish message: {result.rc}")
+                # Check return codes
+                if result.rc == mqtt.MQTT_ERR_SUCCESS:
+                    print(f"✅ [PUBLISH-{publish_id}] SUCCESS - Message queued for publishing")
+                    logger.info(f"Message queued for publishing: {topic}")
+                elif result.rc == mqtt.MQTT_ERR_NO_CONN:
+                    print(f"❌ [PUBLISH-{publish_id}] ERROR - No connection to broker")
+                    logger.error("No connection to MQTT broker")
+                elif result.rc == mqtt.MQTT_ERR_QUEUE_SIZE:
+                    print(f"❌ [PUBLISH-{publish_id}] ERROR - Message queue is full")
+                    logger.error("MQTT message queue is full")
                 else:
-                    print(f"✅ [PUBLISH-{publish_id}] Message published successfully to MQTT broker")
+                    print(f"❌ [PUBLISH-{publish_id}] ERROR - Unknown error code: {result.rc}")
+                    logger.error(f"Unknown MQTT error: {result.rc}")
             else:
-                print(f"❌ [PUBLISH-{publish_id}] MQTT client not connected, cannot publish message")
+                print(f"❌ [PUBLISH-{publish_id}] ERROR - MQTT CLIENT NOT CONNECTED")
                 print(f"   Client exists: {self.mqtt_client is not None}")
                 if self.mqtt_client:
                     print(f"   Client connected: {self.mqtt_client.is_connected()}")
                 logger.warning("MQTT client not connected, cannot publish message")
         except Exception as e:
-            print(f"❌ [PUBLISH-{publish_id}] Failed to publish to MQTT: {e}")
+            print(f"❌ [PUBLISH-{publish_id}] EXCEPTION DURING PUBLISH")
+            print(f"   Exception type: {type(e).__name__}")
+            print(f"   Exception message: {e}")
             logger.error(f"Failed to publish to MQTT: {e}")
+        
+        print(f"="*80)
     
     def stop(self):
         """Stop the MQTT service"""
@@ -329,12 +355,12 @@ class ExternalMQTTService:
 
 def main():
     """Main entry point"""
-    service = ExternalMQTTService()
+    service = StandaloneMQTTService()
     
     try:
         if service.start():
-            print("🚀 External MQTT service is running. Press Ctrl+C to stop.")
-            logger.info("External MQTT service is running. Press Ctrl+C to stop.")
+            print("🚀 Standalone MQTT service is running. Press Ctrl+C to stop.")
+            logger.info("Standalone MQTT service is running. Press Ctrl+C to stop.")
             # Keep the main thread alive
             while service.running:
                 time.sleep(1)

@@ -8,6 +8,7 @@ echo "============================="
 echo "🧹 Stopping all MQTT and Redis processes..."
 
 # Stop our custom services first
+pkill -f standalone_mqtt_service 2>/dev/null && echo "✅ Standalone MQTT Service stopped" || echo "ℹ️  Standalone MQTT Service not running"
 pkill -f external_mqtt_service 2>/dev/null && echo "✅ External MQTT Service stopped" || echo "ℹ️  External MQTT Service not running"
 pkill -f monitor_messages 2>/dev/null && echo "✅ MQTT Monitor stopped" || echo "ℹ️  MQTT Monitor not running"
 

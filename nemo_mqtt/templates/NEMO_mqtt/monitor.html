@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% load static %}
 
+<!-- Template Debug: This template is being processed -->
+
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
@@ -113,7 +115,6 @@
     .message-item {
         padding: 15px 20px;
         border-bottom: 1px solid #f1f3f4;
-        transition: background-color 0.2s;
     }
     
     .message-item:hover {
@@ -312,17 +313,6 @@
         background-color: #545b62;
     }
     
-    .auto-refresh {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 0.9em;
-        color: #495057;
-    }
-    
-    .auto-refresh input[type="checkbox"] {
-        margin: 0;
-    }
     
     .connection-status {
         display: flex;
@@ -348,416 +338,278 @@
 {% endblock %}
 
 {% block content %}
+<!-- Django Template Debug: Page is rendering -->
+<div style="background: #ffeb3b; padding: 10px; margin: 10px; border: 2px solid #f57f17;">
+    <strong>Django Template Debug:</strong> This page is being rendered by Django. If you see this, the template is working.
+</div>
+
+<!-- JavaScript Test: Static HTML -->
+<div id="js-test-static" style="background: #2196f3; color: white; padding: 10px; margin: 10px;">
+    <strong>Static HTML Test:</strong> This should appear immediately when the page loads.
+</div>
+
+<!-- Inline JavaScript Test -->
+<script>
+console.log('Inline script test - this should run immediately');
+try {
+    const inlineTest = document.createElement('div');
+    inlineTest.style.cssText = 'background: #9c27b0; color: white; padding: 10px; margin: 10px;';
+    inlineTest.textContent = 'Inline JavaScript is working!';
+    document.body.appendChild(inlineTest);
+} catch (e) {
+    console.error('Inline script error:', e);
+}
+
+// Move all the main JavaScript here since extra_js block isn't working
+console.log('=== Main JavaScript starting ===');
+
+// Global variables and functions
+let allMessages = [];
+let debugCounter = 0;
+let messagesList, debugLogElement, messageCount;
+
+// Debug logging function
+function debugLog(message) {
+    debugCounter++;
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = `[${timestamp}] ${debugCounter}: ${message}`;
+    console.log(logEntry);
+    
+    // Add to debug display
+    const debugDiv = document.createElement('div');
+    debugDiv.textContent = logEntry;
+    debugLogElement.appendChild(debugDiv);
+    
+    // Keep only last 10 debug entries
+    const debugEntries = debugLogElement.children;
+    if (debugEntries.length > 10) {
+        debugLogElement.removeChild(debugEntries[0]);
+    }
+}
+
+// Fetch messages from API - make this global
+function fetchMessages() {
+    debugLog('fetchMessages() called');
+    const url = '/mqtt/monitor/api/';
+    debugLog(`Fetching from URL: ${url}`);
+    
+    fetch(url)
+    .then(response => {
+        debugLog(`API response status: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        debugLog(`API returned ${data.messages ? data.messages.length : 0} messages`);
+        debugLog(`Raw API data: ${JSON.stringify(data).substring(0, 200)}...`);
+        allMessages = data.messages || [];
+        debugLog(`allMessages now contains ${allMessages.length} messages`);
+        debugLog(`About to call displayMessages()...`);
+        displayMessages();
+        debugLog(`displayMessages() completed`);
+        updateConnectionStatus(data.monitoring);
+    })
+    .catch(error => {
+        debugLog(`Error fetching messages: ${error.message}`);
+        console.error('Error fetching messages:', error);
+        messagesList.innerHTML = '<div class="no-messages"><p>Error fetching messages.</p></div>';
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded event fired');
+    messagesList = document.getElementById('messages-list');
+    debugLogElement = document.getElementById('debug-log');
+    messageCount = document.getElementById('message-count');
+    
+    debugLog('Page loaded, initializing...');
+    debugLog('Version 12.0 - No Auto-Refresh, Stable Display');
+    debugLog('JavaScript is executing!');
+    
+    // Initial load
+    debugLog('Starting initial load...');
+    debugLog('About to call fetchMessages()...');
+    fetchMessages();
+    debugLog('fetchMessages() call completed');
+    
+    // Add a periodic check to see if something is still running
+    setInterval(() => {
+        debugLog(`Periodic check: ${allMessages.length} messages in memory, ${messagesList.children.length} DOM elements`);
+    }, 10000); // Check every 10 seconds
+});
+
+// Global utility functions
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Pretty print JSON with syntax highlighting
+function prettyPrintJson(jsonString) {
+    try {
+        const parsed = JSON.parse(jsonString);
+        const pretty = JSON.stringify(parsed, null, 2);
+        return syntaxHighlight(pretty);
+    } catch (e) {
+        return escapeHtml(jsonString);
+    }
+}
+
+// Add syntax highlighting to JSON
+function syntaxHighlight(json) {
+    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+        let cls = 'json-number';
+        if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+                cls = 'json-key';
+            } else {
+                cls = 'json-string';
+            }
+        } else if (/true|false/.test(match)) {
+            cls = 'json-boolean';
+        } else if (/null/.test(match)) {
+            cls = 'json-null';
+        }
+        return '<span class="' + cls + '">' + match + '</span>';
+    });
+}
+
+// Format message payload for display
+function formatPayload(payload) {
+    // Try to detect if it's JSON
+    const trimmed = payload.trim();
+    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+        return {
+            content: prettyPrintJson(payload),
+            type: 'json',
+            isJson: true
+        };
+    }
+    
+    // Check if it looks like JSON but might be malformed
+    if (trimmed.includes('{') || trimmed.includes('[')) {
+        try {
+            JSON.parse(payload);
+            return {
+                content: prettyPrintJson(payload),
+                type: 'json',
+                isJson: true
+            };
+        } catch (e) {
+            // Not valid JSON, treat as raw
+        }
+    }
+    
+    // Raw text
+    return {
+        content: escapeHtml(payload),
+        type: 'raw',
+        isJson: false
+    };
+}
+
+// Filter to show only MQTT messages
+function filterMessages() {
+    const filtered = allMessages.filter(msg => msg.source === 'MQTT');
+    debugLog(`Filtered messages: ${filtered.length} MQTT messages from ${allMessages.length} total`);
+    return filtered;
+}
+
+// Display messages in a clean, human-readable format
+function displayMessages() {
+    try {
+        debugLog('displayMessages() called');
+        const filteredMessages = filterMessages();
+        
+        if (filteredMessages.length === 0) {
+            debugLog('No messages to display, showing empty state');
+            messagesList.innerHTML = '<div class="no-messages"><p>No MQTT messages available.</p></div>';
+            messageCount.textContent = '0';
+            return;
+        }
+        
+        // Show last 10 MQTT messages, most recent first
+        const messagesToShow = filteredMessages.slice(-10).reverse();
+        debugLog(`Displaying ${messagesToShow.length} messages (last 10)`);
+        
+        const html = messagesToShow.map((msg, index) => {
+            const timestamp = new Date(msg.timestamp).toLocaleString();
+            const payloadInfo = formatPayload(msg.payload);
+            
+            debugLog(`Message ${index + 1}: ${msg.topic} at ${timestamp}`);
+            
+            return `
+                <div class="message-item" data-message-id="${msg.id || index}">
+                    <div class="message-header">
+                        <strong>${msg.topic}</strong>
+                        <span class="message-timestamp">${timestamp}</span>
+                    </div>
+                    <div class="message-payload ${payloadInfo.type}">
+                        <div class="payload-content">${payloadInfo.content}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+        debugLog(`Setting innerHTML with ${messagesToShow.length} messages`);
+        debugLog(`HTML length: ${html.length} characters`);
+        messagesList.innerHTML = html;
+        messageCount.textContent = messagesToShow.length;
+        debugLog('HTML updated successfully');
+    } catch (error) {
+        debugLog(`ERROR in displayMessages(): ${error.message}`);
+        console.error('Error in displayMessages:', error);
+        messagesList.innerHTML = '<div class="no-messages"><p>Error displaying messages.</p></div>';
+    }
+}
+
+// Update connection status
+function updateConnectionStatus(monitoring) {
+    const mqttStatus = document.getElementById('mqtt-status');
+    
+    if (monitoring) {
+        mqttStatus.className = 'status-indicator status-running';
+    } else {
+        mqttStatus.className = 'status-indicator status-stopped';
+    }
+}
+
+console.log('=== Main JavaScript loaded ===');
+</script>
 <div class="monitor-container">
     <div class="monitor-header">
-        <div>
-            <h1>{{ title }}</h1>
+        <h1>{{ title }}</h1>
+        <div class="monitor-controls">
+            <button class="btn btn-primary" onclick="fetchMessages()">Refresh Now</button>
             <div class="connection-status">
                 <div class="connection-item">
                     <span class="status-indicator" id="mqtt-status"></span>
                     <span>MQTT</span>
                 </div>
-                <div class="connection-item">
-                    <span class="status-indicator" id="redis-status"></span>
-                    <span>Redis</span>
-                </div>
             </div>
-        </div>
-        <div class="monitor-controls">
-            <button id="start-monitor" class="btn btn-success">Start Monitoring</button>
-            <button id="stop-monitor" class="btn btn-danger">Stop Monitoring</button>
-            <button id="clear-messages" class="btn btn-secondary">Clear Messages</button>
-        </div>
-    </div>
-    
-    <div class="message-filters">
-        <div class="filter-group">
-            <label for="source-filter">Source:</label>
-            <select id="source-filter">
-                <option value="">All Sources</option>
-                <option value="mqtt">MQTT</option>
-                <option value="redis">Redis</option>
-            </select>
-        </div>
-        <div class="filter-group">
-            <label for="topic-filter">Topic Filter:</label>
-            <input type="text" id="topic-filter" placeholder="Filter by topic...">
-        </div>
-        <div class="filter-group">
-            <label for="auto-refresh">Auto Refresh:</label>
-            <div class="auto-refresh">
-                <input type="checkbox" id="auto-refresh">
-                <span>Every 5 seconds (optional)</span>
-            </div>
-        </div>
-        <div class="filter-group">
-            <button id="refresh-now" class="btn btn-primary">Refresh Now</button>
         </div>
     </div>
     
     <div class="messages-container">
         <div class="messages-header">
-            <span>Recent Messages</span>
+            <span>MQTT Messages</span>
             <span class="message-count" id="message-count">0</span>
         </div>
         <div class="messages-list" id="messages-list">
-            <div class="no-messages">
-                <p>No messages yet. Start monitoring to see MQTT and Redis messages.</p>
+        </div>
+        <div id="debug-info" style="background: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                <div>Debug Info:</div>
+                <div style="color: #007bff; font-weight: bold;">Version: 16.0 (the trials)</div>
             </div>
+            <div id="debug-log"></div>
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const messagesList = document.getElementById('messages-list');
-    const messageCount = document.getElementById('message-count');
-    const startBtn = document.getElementById('start-monitor');
-    const stopBtn = document.getElementById('stop-monitor');
-    const clearBtn = document.getElementById('clear-messages');
-    const sourceFilter = document.getElementById('source-filter');
-    const topicFilter = document.getElementById('topic-filter');
-    const autoRefresh = document.getElementById('auto-refresh');
-    const refreshNowBtn = document.getElementById('refresh-now');
-    
-    let refreshInterval;
-    let allMessages = [];
-    let lastRefreshTime = null;
-    
-    // Start monitoring
-    startBtn.addEventListener('click', function() {
-        console.log('Starting monitoring...');
-        fetch('{% url "mqtt_plugin:monitor_control" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: 'action=start'
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Start monitoring response:', data);
-            if (data.status === 'started') {
-                updateStatus(true);
-                if (autoRefresh.checked) {
-                    startAutoRefresh();
-                }
-                // Fetch messages immediately after starting
-                fetchMessages();
-            }
-        })
-        .catch(error => {
-            console.error('Error starting monitoring:', error);
-        });
-    });
-    
-    // Stop monitoring
-    stopBtn.addEventListener('click', function() {
-        console.log('Stopping monitoring...');
-        fetch('{% url "mqtt_plugin:monitor_control" %}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: 'action=stop'
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Stop monitoring response:', data);
-            if (data.status === 'stopped') {
-                updateStatus(false);
-                stopAutoRefresh();
-            }
-        })
-        .catch(error => {
-            console.error('Error stopping monitoring:', error);
-        });
-    });
-    
-    // Clear messages
-    clearBtn.addEventListener('click', function() {
-        allMessages = [];
-        displayMessages();
-    });
-    
-    // Manual refresh
-    refreshNowBtn.addEventListener('click', function() {
-        fetchMessages();
-    });
-    
-    // Filter messages
-    function filterMessages() {
-        const source = sourceFilter.value.toLowerCase();
-        const topic = topicFilter.value.toLowerCase();
-        
-        return allMessages.filter(msg => {
-            const sourceMatch = !source || msg.source.toLowerCase() === source;
-            const topicMatch = !topic || msg.topic.toLowerCase().includes(topic);
-            return sourceMatch && topicMatch;
-        });
-    }
-    
-    // Display messages
-    function displayMessages() {
-        const filteredMessages = filterMessages();
-        // Show total message count, not filtered count
-        messageCount.textContent = allMessages.length;
-        
-        if (filteredMessages.length === 0) {
-            if (allMessages.length === 0) {
-                messagesList.innerHTML = '<div class="no-messages"><p>No messages yet. Start monitoring to see MQTT and Redis messages.</p></div>';
-            } else {
-                messagesList.innerHTML = '<div class="no-messages"><p>No messages match the current filters.</p></div>';
-            }
-            return;
-        }
-        
-        const html = filteredMessages.slice(-20).reverse().map(msg => {
-            const timestamp = new Date(msg.timestamp).toLocaleString();
-            const sourceClass = msg.source.toLowerCase();
-            const payloadInfo = formatPayload(msg.payload);
-            
-            return `
-                <div class="message-item">
-                    <div class="message-header">
-                        <span class="message-source source-${sourceClass}">${msg.source}</span>
-                        <span class="message-timestamp">${timestamp}</span>
-                    </div>
-                    <div class="message-topic">${msg.topic}</div>
-                    <div class="message-payload ${payloadInfo.type}">
-                        <div class="payload-type ${payloadInfo.type}">${payloadInfo.type}</div>
-                        <div class="payload-content">${payloadInfo.content}</div>
-                    </div>
-                    <div class="message-meta">
-                        <div class="meta-item">
-                            <span>QoS:</span>
-                            <span>${msg.qos}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>Retain:</span>
-                            <span>${msg.retain ? 'Yes' : 'No'}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>ID:</span>
-                            <span>${msg.id}</span>
-                        </div>
-                        <div class="meta-item">
-                            <span>Type:</span>
-                            <span>${payloadInfo.isJson ? 'JSON' : 'Text'}</span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        messagesList.innerHTML = html;
-    }
-    
-    // Fetch messages from API
-    function fetchMessages() {
-        const url = '{% url "mqtt_plugin:monitor_api" %}';
-        const params = new URLSearchParams();
-        
-        // Only fetch new messages if we have a last refresh time
-        if (lastRefreshTime) {
-            params.append('since', lastRefreshTime);
-        }
-        
-        const fullUrl = params.toString() ? `${url}?${params.toString()}` : url;
-        
-        fetch(fullUrl)
-        .then(response => response.json())
-        .then(data => {
-            const newMessages = data.messages || [];
-            
-            // If we're fetching since a specific time, append new messages
-            if (lastRefreshTime) {
-                allMessages = [...allMessages, ...newMessages];
-            } else {
-                // First load or manual refresh - replace all messages
-                allMessages = newMessages;
-            }
-            
-            // Keep only the last 50 messages to prevent memory issues
-            if (allMessages.length > 50) {
-                allMessages = allMessages.slice(-50);
-            }
-            
-            lastRefreshTime = new Date().toISOString();
-            displayMessages();
-            updateConnectionStatus(data.monitoring);
-            
-            // Debug logging
-            console.log('Fetched messages:', newMessages.length, 'Total messages:', allMessages.length);
-        })
-        .catch(error => {
-            console.error('Error fetching messages:', error);
-            // Show error message to user
-            messagesList.innerHTML = '<div class="no-messages"><p>Error fetching messages. Check console for details.</p></div>';
-        });
-    }
-    
-    // Update connection status
-    function updateConnectionStatus(monitoring) {
-        const mqttStatus = document.getElementById('mqtt-status');
-        const redisStatus = document.getElementById('redis-status');
-        
-        if (monitoring) {
-            mqttStatus.className = 'status-indicator status-running';
-            redisStatus.className = 'status-indicator status-running';
-        } else {
-            mqttStatus.className = 'status-indicator status-stopped';
-            redisStatus.className = 'status-indicator status-stopped';
-        }
-    }
-    
-    // Update monitoring status
-    function updateStatus(running) {
-        if (running) {
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-        } else {
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        }
-    }
-    
-    // Auto refresh
-    function startAutoRefresh() {
-        if (refreshInterval) clearInterval(refreshInterval);
-        refreshInterval = setInterval(fetchMessages, 5000); // Changed to 5 seconds
-    }
-    
-    function stopAutoRefresh() {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-            refreshInterval = null;
-        }
-    }
-    
-    // Toggle auto refresh
-    autoRefresh.addEventListener('change', function() {
-        if (this.checked) {
-            startAutoRefresh();
-        } else {
-            stopAutoRefresh();
-        }
-    });
-    
-    // Add visual feedback for refresh button
-    refreshNowBtn.addEventListener('click', function() {
-        const originalText = this.textContent;
-        this.textContent = 'Refreshing...';
-        this.disabled = true;
-        
-        setTimeout(() => {
-            this.textContent = originalText;
-            this.disabled = false;
-        }, 1000);
-    });
-    
-    // Filter events
-    sourceFilter.addEventListener('change', displayMessages);
-    topicFilter.addEventListener('input', displayMessages);
-    
-    // Utility functions
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    // Pretty print JSON with syntax highlighting
-    function prettyPrintJson(jsonString) {
-        try {
-            const parsed = JSON.parse(jsonString);
-            const pretty = JSON.stringify(parsed, null, 2);
-            return syntaxHighlight(pretty);
-        } catch (e) {
-            return escapeHtml(jsonString);
-        }
-    }
-    
-    // Add syntax highlighting to JSON
-    function syntaxHighlight(json) {
-        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-            let cls = 'json-number';
-            if (/^"/.test(match)) {
-                if (/:$/.test(match)) {
-                    cls = 'json-key';
-                } else {
-                    cls = 'json-string';
-                }
-            } else if (/true|false/.test(match)) {
-                cls = 'json-boolean';
-            } else if (/null/.test(match)) {
-                cls = 'json-null';
-            }
-            return '<span class="' + cls + '">' + match + '</span>';
-        });
-    }
-    
-    // Format message payload for display
-    function formatPayload(payload) {
-        // Try to detect if it's JSON
-        const trimmed = payload.trim();
-        if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
-            (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-            return {
-                content: prettyPrintJson(payload),
-                type: 'json',
-                isJson: true
-            };
-        }
-        
-        // Check if it looks like JSON but might be malformed
-        if (trimmed.includes('{') || trimmed.includes('[')) {
-            try {
-                JSON.parse(payload);
-                return {
-                    content: prettyPrintJson(payload),
-                    type: 'json',
-                    isJson: true
-                };
-            } catch (e) {
-                // Not valid JSON, treat as raw
-            }
-        }
-        
-        // Raw text
-        return {
-            content: escapeHtml(payload),
-            type: 'raw',
-            isJson: false
-        };
-    }
-    
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
-    
-    // Initial load
-    fetchMessages();
-    updateStatus(false);
-    
-    // Don't start auto-refresh by default
-    autoRefresh.checked = false;
-});
-</script>
+<!-- extra_js block removed to avoid duplicate function declarations -->
 {% endblock %}

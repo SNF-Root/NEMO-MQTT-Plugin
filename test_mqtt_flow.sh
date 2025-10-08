@@ -28,10 +28,12 @@ fi
 
 # Check if our services are running
 echo "🔍 Checking MQTT services..."
-if pgrep -f external_mqtt_service > /dev/null; then
+if pgrep -f standalone_mqtt_service > /dev/null; then
+    echo "✅ Standalone MQTT Service is running"
+elif pgrep -f external_mqtt_service > /dev/null; then
     echo "✅ External MQTT Service is running"
 else
-    echo "❌ External MQTT Service is not running"
+    echo "❌ No MQTT Service is running"
     exit 1
 fi
 

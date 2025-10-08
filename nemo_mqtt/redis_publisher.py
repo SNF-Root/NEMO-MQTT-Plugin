@@ -68,6 +68,7 @@ class RedisMQTTPublisher:
             print(f"🔍 [REDIS-{redis_id}] Redis connection test successful")
             
             event = {
+                'id': redis_id,
                 'topic': topic,
                 'payload': payload,
                 'qos': qos,
