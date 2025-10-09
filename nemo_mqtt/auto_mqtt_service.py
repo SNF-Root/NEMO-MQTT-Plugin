@@ -33,7 +33,7 @@ class AutoMQTTService:
             'broker_port': 1883,
             'redis_host': 'localhost',
             'redis_port': 6379,
-            'redis_db': 0
+            'redis_db': 1  # Use database 1 for plugin isolation
         }
     
     def start(self):
@@ -65,10 +65,17 @@ class AutoMQTTService:
         try:
             logger.info("🧹 Cleaning up existing services...")
             
-            # Kill all Redis processes
-            logger.info("   Stopping existing Redis instances...")
-            subprocess.run(['pkill', '-f', 'redis-server'], capture_output=True)
-            subprocess.run(['pkill', '-f', 'redis'], capture_output=True)
+            # Only kill Redis if we started it (not system Redis)
+            if self.redis_process:
+                logger.info("   Stopping Redis instance started by plugin...")
+                try:
+                    self.redis_process.terminate()
+                    self.redis_process.wait(timeout=5)
+                except:
+                    self.redis_process.kill()
+                self.redis_process = None
+            else:
+                logger.info("   No Redis instance started by plugin to stop")
             
             # Kill all Mosquitto processes
             logger.info("   Stopping existing MQTT broker instances...")
@@ -90,11 +97,20 @@ class AutoMQTTService:
             logger.warning(f"⚠️  Cleanup warning: {e}")
     
     def _start_redis(self):
-        """Start Redis server (fresh instance)"""
+        """Start Redis server or connect to existing one"""
         try:
-            logger.info("🔍 Starting Redis server...")
+            # First, check if Redis is already running
+            logger.info("🔍 Checking for existing Redis server...")
+            try:
+                test_client = redis.Redis(host=self.config['redis_host'], port=self.config['redis_port'], db=self.config['redis_db'])
+                test_client.ping()
+                logger.info("✅ Redis server already running, connecting to existing instance")
+                self.redis_client = test_client
+                return
+            except redis.ConnectionError:
+                logger.info("🔍 No existing Redis server found, starting new one...")
             
-            # Start Redis server
+            # Start Redis server only if none exists
             self.redis_process = subprocess.Popen(
                 ['redis-server', '--daemonize', 'yes'],
                 stdout=subprocess.PIPE,

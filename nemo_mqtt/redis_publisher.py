@@ -26,14 +26,14 @@ class RedisMQTTPublisher:
         
         for attempt in range(max_retries):
             try:
-            self.redis_client = redis.Redis(
-                host='localhost',
-                port=6379,
-                db=1,  # Use database 1 for plugin isolation
-                decode_responses=True,
-                socket_connect_timeout=5,
-                socket_timeout=5
-            )
+                self.redis_client = redis.Redis(
+                    host='localhost',
+                    port=6379,
+                    db=1,  # Use database 1 for plugin isolation
+                    decode_responses=True,
+                    socket_connect_timeout=5,
+                    socket_timeout=5
+                )
                 # Test connection
                 self.redis_client.ping()
                 logger.info("Connected to Redis for MQTT event publishing")
