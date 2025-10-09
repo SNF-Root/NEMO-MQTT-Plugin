@@ -338,28 +338,7 @@
 {% endblock %}
 
 {% block content %}
-<!-- Django Template Debug: Page is rendering -->
-<div style="background: #ffeb3b; padding: 10px; margin: 10px; border: 2px solid #f57f17;">
-    <strong>Django Template Debug:</strong> This page is being rendered by Django. If you see this, the template is working.
-</div>
-
-<!-- JavaScript Test: Static HTML -->
-<div id="js-test-static" style="background: #2196f3; color: white; padding: 10px; margin: 10px;">
-    <strong>Static HTML Test:</strong> This should appear immediately when the page loads.
-</div>
-
-<!-- Inline JavaScript Test -->
 <script>
-console.log('Inline script test - this should run immediately');
-try {
-    const inlineTest = document.createElement('div');
-    inlineTest.style.cssText = 'background: #9c27b0; color: white; padding: 10px; margin: 10px;';
-    inlineTest.textContent = 'Inline JavaScript is working!';
-    document.body.appendChild(inlineTest);
-} catch (e) {
-    console.error('Inline script error:', e);
-}
-
 // Move all the main JavaScript here since extra_js block isn't working
 console.log('=== Main JavaScript starting ===');
 
@@ -420,6 +399,12 @@ document.addEventListener('DOMContentLoaded', function() {
     messagesList = document.getElementById('messages-list');
     debugLogElement = document.getElementById('debug-log');
     messageCount = document.getElementById('message-count');
+    
+    // Update JavaScript timestamp
+    const jsTimestamp = document.getElementById('js-timestamp');
+    if (jsTimestamp) {
+        jsTimestamp.textContent = new Date().toLocaleString();
+    }
     
     debugLog('Page loaded, initializing...');
     debugLog('Version 12.0 - No Auto-Refresh, Stable Display');
@@ -586,7 +571,6 @@ console.log('=== Main JavaScript loaded ===');
             <div class="connection-status">
                 <div class="connection-item">
                     <span class="status-indicator" id="mqtt-status"></span>
-                    <span>MQTT</span>
                 </div>
             </div>
         </div>
@@ -594,7 +578,7 @@ console.log('=== Main JavaScript loaded ===');
     
     <div class="messages-container">
         <div class="messages-header">
-            <span>MQTT Messages</span>
+            <span>MQTT Message Monitor</span>
             <span class="message-count" id="message-count">0</span>
         </div>
         <div class="messages-list" id="messages-list">
@@ -602,7 +586,8 @@ console.log('=== Main JavaScript loaded ===');
         <div id="debug-info" style="background: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <div>Debug Info:</div>
-                <div style="color: #007bff; font-weight: bold;">Version: 30.0 (jesus christ)</div>
+                <div style="color: #007bff; font-weight: bold;">Version: 31.0 (jesus christ) - {{ "now"|date:"Y-m-d H:i:s" }} - {{ request.META.HTTP_HOST }}{{ request.META.SERVER_PORT }}</div>
+                <div style="color: #28a745; font-size: 11px;">JS Time: <span id="js-timestamp"></span></div>
             </div>
             <div id="debug-log"></div>
         </div>

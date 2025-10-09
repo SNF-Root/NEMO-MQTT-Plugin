@@ -6,6 +6,7 @@ import logging
 from typing import Dict, Any, Optional
 from django.conf import settings
 from django.utils import timezone
+from django.http import HttpResponse
 
 logger = logging.getLogger(__name__)
 
@@ -148,3 +149,36 @@ def get_event_topic_override(event_type: str) -> Optional[str]:
     except Exception as e:
         logger.warning(f"Could not get topic override for {event_type}: {e}")
         return None
+
+
+def render_combine_responses(*responses) -> HttpResponse:
+    """
+    Combine multiple HttpResponse objects into a single response.
+    
+    This function is required by NEMO's plugin system.
+    
+    Args:
+        *responses: Variable number of HttpResponse objects
+        
+    Returns:
+        Combined HttpResponse
+    """
+    if not responses:
+        return HttpResponse()
+    
+    if len(responses) == 1:
+        return responses[0]
+    
+    # Combine content from all responses
+    combined_content = b''.join(response.content for response in responses if response.content)
+    
+    # Use the first response as the base and update its content
+    combined_response = HttpResponse(combined_content)
+    combined_response.status_code = responses[0].status_code
+    
+    # Copy headers from all responses
+    for response in responses:
+        for header, value in response.items():
+            combined_response[header] = value
+    
+    return combined_response

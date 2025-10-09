@@ -4,46 +4,72 @@
 [![Python Support](https://img.shields.io/pypi/pyversions/nemo-mqtt-plugin.svg)](https://pypi.org/project/nemo-mqtt-plugin/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Django plugin that provides MQTT integration for NEMO tool usage events. This plugin enables real-time publishing of tool usage data to MQTT brokers, making it easy to integrate NEMO with IoT systems and real-time monitoring dashboards.
+A comprehensive Django plugin that provides MQTT integration for NEMO tool usage events. This plugin enables real-time publishing of tool usage data to MQTT brokers, making it easy to integrate NEMO with IoT systems, real-time monitoring dashboards, and external automation systems.
 
 ## Features
 
-- 🔌 **Easy Integration**: Simple Django plugin installation
-- 📡 **MQTT Publishing**: Real-time tool usage event publishing
-- 🔄 **Redis Bridge**: Uses Redis as intermediary to prevent connection issues
-- 📊 **Monitoring**: Built-in monitoring and health checks
-- ⚙️ **Configurable**: Admin interface for MQTT configuration
-- 🔒 **Secure**: Supports SSL/TLS connections and authentication
+### 🔌 **Easy Integration**
+- Simple Django plugin installation with automatic setup
+- One-command installation with `install_standalone.py`
+- Automatic Django configuration via management commands
+- Seamless integration with NEMO-CE
+
+### 📡 **Real-time MQTT Publishing**
+- **Tool Events**: Tool creation, updates, enable/disable status changes
+- **Usage Events**: Tool usage start/end with detailed timing information
+- **Area Events**: Area access records and reservation changes
+- **Reservation Events**: Reservation creation, updates, and cancellations
+- **Custom Events**: Extensible event system for additional NEMO events
+
+### 🔄 **Robust Architecture**
+- **Redis Bridge**: Uses Redis as intermediary to prevent Django connection issues
+- **External Service**: Standalone MQTT service maintains persistent broker connections
+- **Auto-reconnection**: Automatic reconnection with exponential backoff
+- **Message Queuing**: Reliable message delivery with Redis queuing
+
+### 📊 **Comprehensive Monitoring**
+- **Web Dashboard**: Real-time MQTT message monitoring at `/mqtt/monitor/`
+- **Message History**: Last 100 messages with JSON syntax highlighting
+- **Filtering**: Filter messages by source (Redis/MQTT) and topic
+- **Auto-refresh**: Real-time updates with start/stop controls
+- **Health Checks**: Built-in monitoring and debugging tools
+
+### ⚙️ **Advanced Configuration**
+- **Django Admin**: Full configuration interface at `/customization/mqtt/`
+- **Multiple Configurations**: Support for multiple MQTT broker configurations
+- **Event Filtering**: Granular control over which events to publish
+- **Topic Customization**: Configurable topic prefixes and structures
+- **QoS Settings**: Quality of Service level configuration
+
+### 🔒 **Security & Reliability**
+- **SSL/TLS Support**: Full TLS/SSL encryption with certificate management
+- **Authentication**: Username/password and certificate-based authentication
+- **Message Logging**: Complete audit trail of all MQTT messages
+- **Error Handling**: Comprehensive error handling and recovery
+- **Connection Management**: Automatic connection health monitoring
+
+### 🛠️ **Development & Testing**
+- **Development Mode**: Auto-starts Redis, MQTT broker, and services
+- **Testing Tools**: Built-in testing and debugging utilities
+- **Monitoring Scripts**: Command-line monitoring and testing tools
+- **Signal Testing**: Test MQTT signals and message flow
 
 ## Installation
 
-### From PyPI (Recommended)
+### Prerequisites
+
+- **Python**: 3.8 or higher
+- **Django**: 3.2 or higher
+- **NEMO-CE**: 4.0 or higher
+- **Redis**: 6.0 or higher (for message queuing)
+- **MQTT Broker**: Mosquitto, HiveMQ, or compatible MQTT broker
+
+### Installation Methods
+
+#### **Method 1: One-Command Installation (Easiest)**
 
 ```bash
-pip install nemo-mqtt-plugin
-```
-
-### From Source
-
-```bash
-git clone https://github.com/SNF-Root/NEMO-MQTT-Plugin.git
-cd NEMO-MQTT-Plugin
-pip install -e .
-```
-
-### Development Installation
-
-```bash
-git clone https://github.com/SNF-Root/NEMO-MQTT-Plugin.git
-cd NEMO-MQTT-Plugin
-pip install -e .[dev]
-```
-
-## Quick Start
-
-### **Option 1: One-Liner Installation (Easiest)**
-
-```bash
+# Download and run the standalone installer
 python install_standalone.py --nemo-path /path/to/your/nemo-ce
 ```
 
@@ -54,52 +80,37 @@ This single command will:
 - Run database migrations
 - Verify the installation
 
-### **Option 2: Automatic Setup (Recommended)**
+#### **Method 2: PyPI Installation (Recommended)**
 
-1. **Install the plugin:**
    ```bash
+# Install from PyPI
    pip install nemo-mqtt-plugin
-   ```
 
-2. **Run the setup command:**
-   ```bash
+# Run automatic setup
    cd /path/to/your/nemo-ce
    python manage.py setup_nemo_integration
+
+# Run migrations
+python manage.py migrate NEMO_mqtt
    ```
 
-3. **Run migrations:**
-   ```bash
-   python manage.py migrate nemo_mqtt
-   ```
-
-4. **Start Redis:**
-   ```bash
-   # Ubuntu/Debian
-   sudo systemctl start redis-server
+#### **Method 3: Development Installation**
    
-   # macOS
-   brew services start redis
-   ```
-
-5. **Start MQTT broker:**
    ```bash
-   # Using mosquitto
-   mosquitto -c /path/to/mosquitto.conf
-   
-   # Or using Docker
-   docker run -d -p 1883:1883 eclipse-mosquitto
-   ```
+# Clone the repository
+git clone https://github.com/SNF-Root/NEMO-MQTT-Plugin.git
+cd NEMO-MQTT-Plugin
 
-6. **Start external MQTT service:**
-   ```bash
-   python -m nemo_mqtt.external_mqtt_service
-   ```
+# Install in development mode
+pip install -e .[dev]
 
-7. **Configure MQTT settings:**
-   - Go to Django admin → MQTT Plugin → MQTT Configurations
-   - Add your MQTT broker details
+# Set up NEMO integration
+cd /path/to/your/nemo-ce
+python manage.py setup_nemo_integration
+python manage.py migrate NEMO_mqtt
+```
 
-### **Option 2: Manual Setup**
+#### **Method 4: Manual Setup**
 
 1. **Install the plugin:**
    ```bash
@@ -110,69 +121,859 @@ This single command will:
    ```python
    INSTALLED_APPS = [
        # ... other apps
-       'nemo_mqtt',
+       'NEMO_mqtt',
    ]
    ```
 
 3. **Add URLs to NEMO/urls.py:**
    ```python
    urlpatterns += [
-       path("mqtt/", include("nemo_mqtt.urls")),
+       path("mqtt/", include("NEMO_mqtt.urls")),
    ]
    ```
 
 4. **Run migrations:**
    ```bash
-   python manage.py migrate nemo_mqtt
+   python manage.py migrate NEMO_mqtt
    ```
 
-5. **Continue with steps 4-7 from Option 1**
+## Quick Start
+
+### **Development Mode (Auto-Setup)**
+
+For development and testing, the plugin can automatically start all required services:
+
+```bash
+# Start NEMO with MQTT plugin
+cd /path/to/your/nemo-ce
+python manage.py runserver
+
+# The plugin will automatically:
+# - Start Redis server
+# - Start MQTT broker (Mosquitto)
+# - Start MQTT service
+# - Enable monitoring dashboard
+```
+
+**Access Points:**
+- **NEMO**: http://localhost:8000
+- **MQTT Monitor**: http://localhost:8000/mqtt/monitor/
+- **MQTT Configuration**: http://localhost:8000/customization/mqtt/
+
+### **Production Mode (Manual Setup)**
+
+For production deployment:
+
+1. **Start Redis:**
+   ```bash
+   # Ubuntu/Debian
+   sudo systemctl start redis-server
+   sudo systemctl enable redis-server
+   
+   # macOS
+   brew services start redis
+   
+   # Docker
+   docker run -d --name redis -p 6379:6379 redis:alpine
+   ```
+
+2. **Start MQTT Broker:**
+   ```bash
+   # Using Mosquitto
+   mosquitto -c /path/to/mosquitto.conf
+   
+   # Using Docker
+   docker run -d --name mosquitto -p 1883:1883 eclipse-mosquitto
+   
+   # Using HiveMQ
+   docker run -d --name hivemq -p 1883:1883 hivemq/hivemq-ce
+   ```
+
+3. **Configure MQTT Settings:**
+   - Go to http://localhost:8000/customization/mqtt/
+   - Set broker host, port, authentication, etc.
+   - Enable the configuration
+
+4. **Start MQTT Service:**
+   ```bash
+   # Start the external MQTT service
+   python -m NEMO_mqtt.external_mqtt_service
+   
+   # Or use the systemd service (if configured)
+   sudo systemctl start nemo-mqtt
+   sudo systemctl enable nemo-mqtt
+   ```
+
+### **Docker Compose Setup**
+
+For easy deployment with Docker:
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  nemo:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - mosquitto
+    environment:
+      - REDIS_HOST=redis
+      - MQTT_BROKER_HOST=mosquitto
+
+volumes:
+  redis_data:
+```
+
+```bash
+# Start all services
+docker-compose up -d
+
+# View logs
+docker-compose logs -f nemo
+```
 
 ## Configuration
 
-Configure MQTT settings through the Django admin interface:
-- **Broker Host**: MQTT broker address
-- **Port**: MQTT broker port (default: 1883)
-- **Username/Password**: Authentication credentials
-- **SSL/TLS**: Enable secure connections
-- **Topics**: Customize MQTT topic structure
+### Web-Based Configuration
+
+Configure MQTT settings through the Django customization interface at `/customization/mqtt/`:
+
+#### **Basic Settings**
+- **Configuration Name**: Unique identifier for the configuration
+- **Enabled**: Enable/disable this configuration
+- **Broker Host**: MQTT broker address (default: localhost)
+- **Broker Port**: MQTT broker port (default: 1883)
+- **Client ID**: Unique MQTT client identifier
+- **Keep Alive**: Connection keep-alive interval (seconds)
+
+#### **Authentication**
+- **Username**: MQTT broker username
+- **Password**: MQTT broker password
+- **Use TLS/SSL**: Enable secure connections
+
+#### **TLS/SSL Security**
+- **TLS Version**: TLS version (1.0, 1.1, 1.2, 1.3)
+- **CA Certificate**: Certificate Authority certificate (PEM format)
+- **Client Certificate**: Client certificate (PEM format)
+- **Client Key**: Client private key (PEM format)
+- **Insecure Mode**: Allow insecure TLS connections (not recommended)
+
+#### **Message Settings**
+- **Topic Prefix**: Prefix for all MQTT topics (default: "nemo")
+- **QoS Level**: Quality of Service (0=At most once, 1=At least once, 2=Exactly once)
+- **Retain Messages**: Retain messages on broker
+- **Clean Session**: Start with clean session
+
+#### **Connection Management**
+- **Auto Reconnect**: Automatically reconnect on connection loss
+- **Reconnect Delay**: Delay between reconnection attempts (seconds)
+- **Max Reconnect Attempts**: Maximum reconnection attempts (0=unlimited)
+
+#### **Logging & Monitoring**
+- **Log Messages**: Log all MQTT messages to database
+- **Log Level**: Logging level (DEBUG, INFO, WARNING, ERROR)
+
+### Event Filtering
+
+Control which events are published via MQTT:
+
+- **Tool Events**: Tool creation, updates, enable/disable
+- **Area Events**: Area access records and changes
+- **Reservation Events**: Reservation creation, updates, cancellations
+- **Usage Events**: Tool usage start/end events
+- **Custom Topics**: Override default topic for specific events
+
+### Topic Structure
+
+The plugin uses a hierarchical topic structure:
+
+```
+nemo/
+├── tools/
+│   ├── {tool_id}/           # Tool-specific events
+│   ├── {tool_id}/start      # Tool usage start
+│   ├── {tool_id}/end        # Tool usage end
+│   ├── {tool_id}/enabled    # Tool enabled
+│   └── {tool_id}/disabled   # Tool disabled
+├── areas/
+│   └── {area_id}/           # Area-specific events
+├── reservations/
+│   └── {reservation_id}/    # Reservation events
+└── area_access/
+    └── {access_id}/         # Area access events
+```
+
+## Monitoring & Management
+
+### Web Dashboard
+
+Access the real-time monitoring dashboard at `/mqtt/monitor/`:
+
+#### **Features**
+- **Real-time Messages**: Live display of MQTT messages
+- **Message History**: Last 100 messages with timestamps
+- **JSON Syntax Highlighting**: Formatted message display
+- **Source Filtering**: Filter by Redis or MQTT source
+- **Topic Filtering**: Filter by specific topics
+- **Auto-refresh**: Real-time updates (configurable)
+- **Start/Stop Controls**: Control monitoring on/off
+
+#### **Message Display**
+- **Timestamp**: When the message was received
+- **Source**: Redis (internal) or MQTT (broker)
+- **Topic**: MQTT topic path
+- **Payload**: JSON-formatted message data
+- **QoS**: Quality of Service level
+- **Retain**: Whether message was retained
+
+### Command-Line Monitoring
+
+#### **Full MQTT Monitor**
+```bash
+# Monitor both Redis and MQTT messages
+python NEMO_mqtt/monitoring/mqtt_monitor.py
+
+# Or use the shell script
+./monitor_mqtt.sh mqtt
+```
+
+#### **Redis-Only Monitor**
+```bash
+# Monitor Redis messages only
+python NEMO_mqtt/monitoring/redis_checker.py
+
+# Or use the shell script
+./monitor_mqtt.sh redis
+```
+
+#### **Signal Testing**
+```bash
+# Test MQTT signals and message flow
+python NEMO_mqtt/test_mqtt.py
+
+# Or use the shell script
+./monitor_mqtt.sh test
+```
+
+### Health Checks
+
+#### **Service Status**
+- **Redis Connection**: Verify Redis connectivity
+- **MQTT Broker**: Check MQTT broker connection
+- **Message Flow**: Verify message publishing/consuming
+- **Configuration**: Validate MQTT settings
+
+#### **Debugging Tools**
+- **Message Logs**: View all published messages
+- **Error Logs**: Check for connection or publishing errors
+- **Performance Metrics**: Monitor message throughput
+- **Connection Status**: Real-time connection health
+
+### Management Commands
+
+#### **Setup Integration**
+```bash
+# Automatically configure NEMO for MQTT plugin
+python manage.py setup_nemo_integration
+
+# With backup creation
+python manage.py setup_nemo_integration --backup
+```
+
+#### **Test MQTT API**
+```bash
+# Test MQTT plugin functionality
+python manage.py test_mqtt_api
+```
+
+#### **Install MQTT Plugin**
+```bash
+# Install and configure MQTT plugin
+python manage.py install_mqtt_plugin
+```
+
+### Systemd Service (Production)
+
+For production deployments, configure as a systemd service:
+
+```ini
+# /etc/systemd/system/nemo-mqtt.service
+[Unit]
+Description=NEMO MQTT Service
+After=network.target redis.service
+
+[Service]
+Type=simple
+User=nemo
+WorkingDirectory=/path/to/nemo-ce
+ExecStart=/path/to/nemo-ce/venv/bin/python -m NEMO_mqtt.external_mqtt_service
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# Enable and start the service
+sudo systemctl enable nemo-mqtt
+sudo systemctl start nemo-mqtt
+sudo systemctl status nemo-mqtt
+```
 
 ## Architecture
 
+The NEMO MQTT Plugin uses a sophisticated multi-layered architecture designed for reliability, scalability, and ease of maintenance.
+
+### High-Level Architecture
+
 ```
-Django NEMO → Redis → External MQTT Service → MQTT Broker
+┌─────────────────┐    ┌──────────────┐    ┌──────────────────┐    ┌─────────────┐
+│   Django NEMO   │───▶│    Redis     │───▶│ External MQTT    │───▶│ MQTT Broker │
+│                 │    │   (Bridge)   │    │    Service       │    │             │
+│  Signal Events  │    │              │    │                  │    │             │
+└─────────────────┘    └──────────────┘    └──────────────────┘    └─────────────┘
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌──────────────┐    ┌──────────────────┐
+│ Signal Handlers │    │ Message Queue│    │  MQTT Client     │
+│                 │    │              │    │                  │
+│ • Tool Events   │    │ • Reliable   │    │ • Auto-reconnect │
+│ • Usage Events  │    │   Delivery   │    │ • Health Monitor │
+│ • Area Events   │    │ • Persistence│    │ • Error Handling │
+│ • Reservations  │    │ • Ordering   │    │ • TLS Support    │
+└─────────────────┘    └──────────────┘    └──────────────────┘
 ```
 
-The plugin uses Redis as an intermediary to separate Django from MQTT connection management, preventing reconnection loops and ensuring reliable message delivery.
+### Component Details
+
+#### 1. **Django Signal Layer**
+- **Signal Handlers**: Intercept NEMO model changes (Tool, Area, UsageEvent, etc.)
+- **Event Processing**: Transform Django events into MQTT-ready messages
+- **Redis Publisher**: Publish events to Redis queue for reliable delivery
+- **Configuration**: Load MQTT settings from Django database
+
+#### 2. **Redis Bridge Layer**
+- **Message Queue**: Redis list (`NEMO_mqtt_events`) for reliable message queuing
+- **Persistence**: Messages persist across service restarts
+- **Ordering**: FIFO message processing ensures correct event sequence
+- **Isolation**: Separate Redis database (DB 1) for plugin isolation
+
+#### 3. **External MQTT Service**
+- **Standalone Process**: Independent of Django, maintains persistent MQTT connections
+- **Message Consumer**: Consumes messages from Redis queue
+- **MQTT Publisher**: Publishes messages to MQTT broker with proper QoS
+- **Health Monitoring**: Automatic reconnection and error recovery
+- **Configuration**: Loads settings from Django database
+
+#### 4. **MQTT Broker Integration**
+- **Protocol Support**: Full MQTT 3.1.1 and 5.0 support
+- **Security**: TLS/SSL encryption and authentication
+- **QoS Levels**: Configurable Quality of Service (0, 1, 2)
+- **Topic Structure**: Hierarchical topic organization (`nemo/tools/{id}/start`)
+
+### Message Flow
+
+```mermaid
+sequenceDiagram
+    participant NEMO as NEMO Django
+    participant Signal as Signal Handler
+    participant Redis as Redis Queue
+    participant Service as MQTT Service
+    participant Broker as MQTT Broker
+    participant Client as MQTT Client
+
+    NEMO->>Signal: Tool usage event
+    Signal->>Signal: Process event data
+    Signal->>Redis: Publish to queue
+    Redis-->>Signal: Confirm receipt
+    
+    Service->>Redis: Poll for messages
+    Redis-->>Service: Return message
+    Service->>Service: Process message
+    Service->>Broker: Publish MQTT message
+    Broker-->>Service: Confirm delivery
+    Broker->>Client: Forward message
+```
+
+### Development vs Production Modes
+
+#### **Development Mode**
+- **Auto MQTT Service**: Automatically starts Redis, MQTT broker, and services
+- **Simple Configuration**: Hardcoded settings for local development
+- **Integrated Monitoring**: Built-in web dashboard and debugging tools
+- **Hot Reloading**: Changes reflect immediately without restart
+
+#### **Production Mode**
+- **External Service**: Separate process for MQTT service
+- **Database Configuration**: Settings stored in Django database
+- **Production Broker**: Connect to production MQTT broker
+- **Monitoring**: Full logging and health check integration
+
+### Error Handling & Recovery
+
+- **Connection Failures**: Automatic reconnection with exponential backoff
+- **Message Loss Prevention**: Redis persistence ensures no message loss
+- **Configuration Errors**: Fallback to default settings
+- **Service Health**: Continuous monitoring and automatic restart
+- **Logging**: Comprehensive logging for debugging and monitoring
 
 ## Development
 
-### Running Tests
+### Development Workflow
+
+#### **Setting Up Development Environment**
+
+1. **Clone and Install:**
+   ```bash
+   git clone https://github.com/SNF-Root/NEMO-MQTT-Plugin.git
+   cd NEMO-MQTT-Plugin
+   pip install -e .[dev]
+   ```
+
+2. **Set Up NEMO Integration:**
+   ```bash
+   # Run the setup script for your NEMO installation
+   ./setup_nemo_integration.sh /path/to/your/nemo-ce
+   
+   # Or use the management command
+   cd /path/to/your/nemo-ce
+   python manage.py setup_nemo_integration
+   ```
+
+3. **Start Development Services:**
+   ```bash
+   # Terminal 1: Start NEMO
+   cd /path/to/your/nemo-ce
+   python manage.py runserver
+   
+   # Terminal 2: Start MQTT system (auto-starts Redis, MQTT broker, service)
+   cd /path/to/nemo-mqtt-plugin
+   ./start_mqtt_system.sh
+   ```
+
+#### **Development Features**
+
+- **Hot Reloading**: Changes to plugin code reflect immediately
+- **Auto-Service Management**: Automatically starts Redis, MQTT broker, and services
+- **Integrated Monitoring**: Built-in web dashboard at `/mqtt/monitor/`
+- **Debug Logging**: Comprehensive logging for development debugging
+- **Signal Testing**: Built-in tools to test MQTT signals
+
+#### **Key Development Files**
+
+- **`NEMO_mqtt/signals.py`**: Django signal handlers for MQTT events
+- **`NEMO_mqtt/views.py`**: Web monitoring dashboard and API endpoints
+- **`NEMO_mqtt/models.py`**: Database models for configuration and logging
+- **`NEMO_mqtt/external_mqtt_service.py`**: Standalone MQTT service
+- **`NEMO_mqtt/redis_publisher.py`**: Redis-based message publishing
+- **`templates/NEMO_mqtt/monitor.html`**: Web monitoring dashboard UI
+
+### Testing
+
+#### **Running Tests**
 
 ```bash
+# Run all tests
 pytest
+
+# Run specific test files
+pytest tests/test_signals.py
+pytest tests/test_models.py
+pytest tests/test_views.py
+
+# Run with coverage
+pytest --cov=NEMO_mqtt --cov-report=html
 ```
 
-### Code Formatting
+#### **Test Categories**
+
+- **Unit Tests**: Individual component testing
+- **Integration Tests**: End-to-end MQTT flow testing
+- **Signal Tests**: Django signal handler testing
+- **API Tests**: Web API endpoint testing
+- **Service Tests**: MQTT service functionality testing
+
+#### **Manual Testing**
 
 ```bash
-black nemo_mqtt/
-isort nemo_mqtt/
+# Test MQTT signals and message flow
+python NEMO_mqtt/test_mqtt.py
+
+# Monitor MQTT messages in real-time
+python NEMO_mqtt/monitoring/mqtt_monitor.py
+
+# Test Redis connectivity
+python NEMO_mqtt/monitoring/redis_checker.py
+
+# Test MQTT API endpoints
+python manage.py test_mqtt_api
 ```
 
-### Linting
+#### **Testing Scenarios**
+
+1. **Tool Usage Events:**
+   - Enable/disable tools in NEMO
+   - Start/stop tool usage
+   - Verify MQTT messages are published
+
+2. **Area Access Events:**
+   - Grant/revoke area access
+   - Check area access records
+   - Verify MQTT messages
+
+3. **Reservation Events:**
+   - Create/modify/cancel reservations
+   - Verify reservation MQTT messages
+
+4. **Configuration Testing:**
+   - Test different MQTT broker settings
+   - Test TLS/SSL configurations
+   - Test authentication methods
+
+### Code Quality
+
+#### **Code Formatting**
 
 ```bash
-flake8 nemo_mqtt/
+# Format code with Black
+black NEMO_mqtt/
+
+# Sort imports with isort
+isort NEMO_mqtt/
+
+# Format all Python files
+find NEMO_mqtt/ -name "*.py" -exec black {} \;
+find NEMO_mqtt/ -name "*.py" -exec isort {} \;
+```
+
+#### **Linting**
+
+```bash
+# Run flake8 linting
+flake8 NEMO_mqtt/
+
+# Run with specific configuration
+flake8 NEMO_mqtt/ --max-line-length=100 --ignore=E203,W503
+
+# Run pylint
+pylint NEMO_mqtt/
+```
+
+#### **Type Checking**
+
+```bash
+# Run mypy type checking
+mypy NEMO_mqtt/
+
+# Run with strict mode
+mypy NEMO_mqtt/ --strict
+```
+
+### Debugging
+
+#### **Debug Logging**
+
+Enable debug logging in Django settings:
+
+```python
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'NEMO_mqtt': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+    },
+}
+```
+
+#### **Debug Tools**
+
+- **Web Dashboard**: Real-time message monitoring at `/mqtt/monitor/`
+- **Command Line**: Use monitoring scripts for debugging
+- **Django Shell**: Interactive debugging with Django shell
+- **Redis CLI**: Direct Redis inspection with `redis-cli`
+
+#### **Common Debug Scenarios**
+
+1. **No Messages Published:**
+   - Check Redis connection
+   - Verify signal handlers are registered
+   - Check MQTT configuration
+
+2. **Connection Issues:**
+   - Verify MQTT broker is running
+   - Check network connectivity
+   - Validate authentication credentials
+
+3. **Message Format Issues:**
+   - Check JSON serialization
+   - Verify topic structure
+   - Validate payload format
+
+### Building and Distribution
+
+#### **Building Package**
+
+```bash
+# Build source distribution
+python setup.py sdist
+
+# Build wheel distribution
+python setup.py bdist_wheel
+
+# Build both
+python setup.py sdist bdist_wheel
+```
+
+#### **Testing Package**
+
+```bash
+# Install built package
+pip install dist/nemo_mqtt_plugin-1.0.0-py3-none-any.whl
+
+# Test installation
+python -c "import NEMO_mqtt; print('Installation successful')"
+```
+
+#### **Publishing to PyPI**
+
+```bash
+# Install build tools
+pip install build twine
+
+# Build package
+python -m build
+
+# Upload to PyPI
+twine upload dist/*
+```
+
+## Usage Examples
+
+### Basic Tool Usage Monitoring
+
+```python
+# Example MQTT message when a tool is used
+{
+    "event": "tool_usage_start",
+    "usage_id": 123,
+    "user_id": 45,
+    "user_name": "John Doe",
+    "tool_id": 7,
+    "tool_name": "3D Printer",
+    "start_time": "2024-01-15T10:30:00Z",
+    "end_time": null,
+    "timestamp": false
+}
+
+# Topic: nemo/tools/3D Printer/start
+```
+
+### Tool Status Changes
+
+```python
+# Example MQTT message when a tool is enabled/disabled
+{
+    "event": "tool_enabled",
+    "tool_id": 7,
+    "tool_name": "3D Printer",
+    "tool_status": true,
+    "timestamp": false
+}
+
+# Topic: nemo/tools/7/enabled
+```
+
+### Area Access Events
+
+```python
+# Example MQTT message for area access
+{
+    "event": "area_access",
+    "access_id": 89,
+    "user_id": 45,
+    "user_name": "John Doe",
+    "area_id": 3,
+    "area_name": "Machine Shop",
+    "access_time": "2024-01-15T09:00:00Z",
+    "timestamp": false
+}
+
+# Topic: nemo/area_access/89
+```
+
+### Integration with External Systems
+
+#### **Home Assistant Integration**
+
+```yaml
+# homeassistant/configuration.yaml
+mqtt:
+  sensor:
+    - name: "NEMO 3D Printer Status"
+      state_topic: "nemo/tools/3D Printer/enabled"
+      value_template: "{{ 'ON' if value_json.tool_status else 'OFF' }}"
+    
+    - name: "NEMO Tool Usage"
+      state_topic: "nemo/tools/+/start"
+      value_template: "{{ value_json.user_name }} using {{ value_json.tool_name }}"
+```
+
+#### **Node-RED Integration**
+
+```javascript
+// Node-RED flow for NEMO MQTT integration
+[{
+  "id": "nemo-mqtt-input",
+  "type": "mqtt in",
+  "topic": "nemo/tools/+/start",
+  "broker": "mqtt-broker",
+  "wires": [["process-usage"]]
+}, {
+  "id": "process-usage",
+  "type": "function",
+  "func": "msg.payload = {\n  user: msg.payload.user_name,\n  tool: msg.payload.tool_name,\n  time: msg.payload.start_time\n};\nreturn msg;",
+  "wires": [["notification"]]
+}]
+```
+
+#### **Grafana Dashboard**
+
+```json
+{
+  "dashboard": {
+    "title": "NEMO Tool Usage",
+    "panels": [
+      {
+        "title": "Active Tool Usage",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(mqtt_messages{topic=~\"nemo/tools/.*/start\"})",
+            "legendFormat": "Active Sessions"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### Custom Event Handling
+
+```python
+# Custom MQTT subscriber for NEMO events
+import paho.mqtt.client as mqtt
+import json
+
+def on_connect(client, userdata, flags, rc):
+    print(f"Connected with result code {rc}")
+    client.subscribe("nemo/tools/+/start")
+    client.subscribe("nemo/tools/+/end")
+
+def on_message(client, userdata, msg):
+    data = json.loads(msg.payload.decode())
+    
+    if "tool_usage_start" in data.get("event", ""):
+        print(f"Tool usage started: {data['user_name']} using {data['tool_name']}")
+        # Send notification, update database, etc.
+    
+    elif "tool_usage_end" in data.get("event", ""):
+        print(f"Tool usage ended: {data['user_name']} finished using {data['tool_name']}")
+        # Calculate usage time, update logs, etc.
+
+client = mqtt.Client()
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect("localhost", 1883, 60)
+client.loop_forever()
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### **No MQTT Messages Published**
+1. Check Redis connection: `redis-cli ping`
+2. Verify MQTT configuration is enabled
+3. Check Django logs for signal handler errors
+4. Ensure external MQTT service is running
+
+#### **Connection Issues**
+1. Verify MQTT broker is running: `mosquitto_pub -h localhost -t test -m "hello"`
+2. Check network connectivity and firewall settings
+3. Validate authentication credentials
+4. Check TLS/SSL certificate configuration
+
+#### **Message Format Issues**
+1. Verify JSON serialization in signal handlers
+2. Check topic structure and naming
+3. Validate payload format and required fields
+4. Review MQTT broker logs
+
+### Debug Commands
+
+```bash
+# Check Redis connection and messages
+redis-cli -n 1 llen NEMO_mqtt_events
+redis-cli -n 1 lrange NEMO_mqtt_events 0 -1
+
+# Test MQTT broker connectivity
+mosquitto_pub -h localhost -t test -m "hello"
+mosquitto_sub -h localhost -t "nemo/#" -v
+
+# Check service status
+ps aux | grep mqtt
+systemctl status nemo-mqtt
 ```
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Add tests
-5. Submit a pull request
+4. Add tests for new functionality
+5. Ensure all tests pass (`pytest`)
+6. Format code (`black NEMO_mqtt/` and `isort NEMO_mqtt/`)
+7. Commit your changes (`git commit -m 'Add amazing feature'`)
+8. Push to the branch (`git push origin feature/amazing-feature`)
+9. Open a Pull Request
+
+### Development Guidelines
+
+- Follow PEP 8 style guidelines
+- Add type hints for new functions
+- Include docstrings for all public methods
+- Write tests for new functionality
+- Update documentation for new features
+- Ensure backward compatibility
 
 ## License
 
@@ -183,3 +984,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 📖 [Documentation](https://github.com/SNF-Root/NEMO-MQTT-Plugin#readme)
 - 🐛 [Issue Tracker](https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues)
 - 💬 [Discussions](https://github.com/SNF-Root/NEMO-MQTT-Plugin/discussions)
+- 📧 [Email Support](mailto:support@example.com)
+
+## Changelog
+
+### Version 1.0.0
+- Initial release with full MQTT integration
+- Redis bridge architecture for reliability
+- Web-based monitoring dashboard
+- Comprehensive configuration options
+- Development and production deployment support
+- Full test suite and documentation

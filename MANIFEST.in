@@ -1,37 +1,24 @@
 include README.md
 include LICENSE
+include CHANGELOG.md
 include requirements.txt
 include pyproject.toml
-include setup.py
-
-# Include Django templates
-recursive-include nemo_mqtt/templates *
-
-# Include migrations
-recursive-include nemo_mqtt/migrations *
-
-# Include service files
-include nemo_mqtt/*.service
-
-# Include requirements files
-include nemo_mqtt/*.txt
-
-# Include monitoring files
-recursive-include nemo_mqtt/monitoring *
-
-# Include management commands
-recursive-include nemo_mqtt/management *
-
-# Include installation script
-include install_nemo_integration.py
-
-# Exclude Python cache files
+recursive-include NEMO_mqtt/templates *
+recursive-include NEMO_mqtt/migrations *
+include NEMO_mqtt/*.txt
+include NEMO_mqtt/*.service
 global-exclude *.pyc
-global-exclude *.pyo
 global-exclude __pycache__
+global-exclude .git*
 global-exclude .DS_Store
-
-# Exclude test files
-exclude test_*.py
-exclude *_test.py
-exclude tests/
+global-exclude *.egg-info
+global-exclude build
+global-exclude dist
+global-exclude .venv
+global-exclude venv
+global-exclude .pytest_cache
+global-exclude .mypy_cache
+global-exclude .coverage
+global-exclude htmlcov
+global-exclude .tox
+global-exclude .eggs
