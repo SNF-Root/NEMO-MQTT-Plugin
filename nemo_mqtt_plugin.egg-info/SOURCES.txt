@@ -1,6 +1,10 @@
+DEVELOPMENT.md
+INSTALLATION.md
 LICENSE
 MANIFEST.in
+NEMO_CE_SETUP_CHECKLIST.md
 README.md
+dev_reinstall.sh
 dump.rdb
 install_nemo_integration.py
 install_standalone.py
@@ -10,12 +14,15 @@ pyproject.toml
 requirements.txt
 requirements_simple.txt
 setup.py
+setup_nemo_integration.sh
+standalone_mqtt_service.py
 start_mqtt_system.sh
 stop_mqtt_system.sh
 test_mqtt_flow.sh
 NEMO_mqtt/__init__.py
 NEMO_mqtt/admin.py
 NEMO_mqtt/apps.py
+NEMO_mqtt/auto_mqtt_service.py
 NEMO_mqtt/customization.py
 NEMO_mqtt/external_mqtt_service.py
 NEMO_mqtt/models.py
@@ -25,6 +32,7 @@ NEMO_mqtt/nemo-mqtt.service
 NEMO_mqtt/redis_publisher.py
 NEMO_mqtt/requirements.txt
 NEMO_mqtt/signals.py
+NEMO_mqtt/simple_standalone_mqtt.py
 NEMO_mqtt/start_mqtt_service.py
 NEMO_mqtt/test_mqtt.py
 NEMO_mqtt/urls.py

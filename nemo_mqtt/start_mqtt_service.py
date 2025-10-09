@@ -22,7 +22,7 @@ def check_redis():
     """Check if Redis is running"""
     try:
         import redis
-        r = redis.Redis(host='localhost', port=6379, db=0)
+        r = redis.Redis(host='localhost', port=6379, db=1)  # Use database 1 for plugin isolation
         r.ping()
         logger.info("Redis is running")
         return True

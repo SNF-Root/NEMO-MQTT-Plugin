@@ -105,8 +105,8 @@ class StandaloneMQTTService:
             client_id = f"{self.config['client_id']}_{socket.gethostname()}_{os.getpid()}"
             print(f"   Client ID: {client_id}")
             
-            # Create MQTT client
-            self.mqtt_client = mqtt.Client(client_id=client_id)
+            # Create MQTT client with protocol version
+            self.mqtt_client = mqtt.Client(client_id=client_id, protocol=mqtt.MQTTv311)
             
             # Set callbacks
             self.mqtt_client.on_connect = self._on_connect
@@ -148,6 +148,11 @@ class StandaloneMQTTService:
     
     def _on_connect(self, client, userdata, flags, rc):
         """MQTT connection callback"""
+        print(f"🔍 [MQTT-CONNECT] Connection callback triggered")
+        print(f"   Return code: {rc}")
+        print(f"   Client connected: {client.is_connected()}")
+        print(f"   Flags: {flags}")
+        
         if rc == 0:
             print("✅ MQTT broker connection established")
             logger.info("Connected to MQTT broker")
@@ -157,9 +162,16 @@ class StandaloneMQTTService:
     
     def _on_disconnect(self, client, userdata, rc):
         """MQTT disconnection callback"""
+        print(f"🔍 [MQTT-DISCONNECT] Disconnection callback triggered")
+        print(f"   Return code: {rc}")
+        print(f"   Client connected: {client.is_connected()}")
+        
         if rc != 0:
             print(f"⚠️  MQTT broker disconnected: {rc}")
             logger.warning(f"Unexpected disconnection from MQTT broker. Return code: {rc}")
+        else:
+            print("✅ MQTT broker disconnected normally")
+            logger.info("MQTT broker disconnected normally")
     
     def _on_publish(self, client, userdata, mid):
         """MQTT publish callback"""
@@ -207,8 +219,16 @@ class StandaloneMQTTService:
             if self.mqtt_client and not self.mqtt_client.is_connected():
                 print("🔍 Attempting to reconnect to MQTT broker...")
                 self.mqtt_client.reconnect()
-                print("✅ Reconnected to MQTT broker")
-                logger.info("Reconnected to MQTT broker")
+                # Wait for connection to be established
+                time.sleep(0.5)
+                if self.mqtt_client.is_connected():
+                    print("✅ Reconnected to MQTT broker")
+                    logger.info("Reconnected to MQTT broker")
+                else:
+                    print("❌ Reconnection failed - client still not connected")
+                    logger.error("Reconnection failed - client still not connected")
+            else:
+                print("🔍 MQTT client already connected or not initialized")
         except Exception as e:
             print(f"❌ Failed to reconnect to MQTT broker: {e}")
             logger.error(f"Failed to reconnect to MQTT broker: {e}")
@@ -218,11 +238,22 @@ class StandaloneMQTTService:
         import uuid
         mqtt_id = str(uuid.uuid4())[:8]
         
+        print(f"\n🔍 [STANDALONE-{mqtt_id}] Processing event from Redis")
+        print(f"   Raw event data: {event_data}")
+        
         print(f"\n" + "="*80)
         print(f"🔍 [MQTT-{mqtt_id}] PROCESSING EVENT FROM REDIS")
         print(f"="*80)
         print(f"📥 Raw Redis data: {event_data}")
         print(f"📏 Data length: {len(event_data)} characters")
+        
+        # Check if this is a START or END event
+        if '"event": "tool_usage_start"' in event_data:
+            print(f"🔍 [MQTT-{mqtt_id}] DETECTED: START EVENT")
+        elif '"event": "tool_usage_end"' in event_data:
+            print(f"🔍 [MQTT-{mqtt_id}] DETECTED: END EVENT")
+        else:
+            print(f"🔍 [MQTT-{mqtt_id}] DETECTED: OTHER EVENT")
         
         try:
             event = json.loads(event_data)
@@ -292,9 +323,27 @@ class StandaloneMQTTService:
             print(f"   Client connected: {self.mqtt_client.is_connected()}")
             print(f"   Client ID: {getattr(self.mqtt_client, '_client_id', 'unknown')}")
         
-        try:
-            if self.mqtt_client and self.mqtt_client.is_connected():
-                print(f"\n🚀 [PUBLISH-{publish_id}] ATTEMPTING TO PUBLISH...")
+        # Try to publish with retry logic
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                # Check connection before each attempt
+                if not self.mqtt_client or not self.mqtt_client.is_connected():
+                    print(f"🔍 [PUBLISH-{publish_id}] Attempt {attempt + 1}: MQTT client not connected, attempting reconnect...")
+                    self._reconnect()
+                    time.sleep(0.5)  # Wait for reconnection
+                    
+                    if not self.mqtt_client or not self.mqtt_client.is_connected():
+                        print(f"❌ [PUBLISH-{publish_id}] Attempt {attempt + 1}: Still not connected after reconnect")
+                        if attempt < max_retries - 1:
+                            time.sleep(1)  # Wait before retry
+                            continue
+                        else:
+                            print(f"❌ [PUBLISH-{publish_id}] ERROR - MQTT CLIENT NOT CONNECTED after {max_retries} attempts")
+                            logger.warning("MQTT client not connected, cannot publish message")
+                            return
+                
+                print(f"\n🚀 [PUBLISH-{publish_id}] Attempt {attempt + 1}: ATTEMPTING TO PUBLISH...")
                 result = self.mqtt_client.publish(topic, payload, qos=qos, retain=retain)
                 
                 print(f"\n📊 [PUBLISH-{publish_id}] PUBLISH RESULT:")
@@ -307,26 +356,40 @@ class StandaloneMQTTService:
                 if result.rc == mqtt.MQTT_ERR_SUCCESS:
                     print(f"✅ [PUBLISH-{publish_id}] SUCCESS - Message queued for publishing")
                     logger.info(f"Message queued for publishing: {topic}")
+                    return  # Success, exit retry loop
                 elif result.rc == mqtt.MQTT_ERR_NO_CONN:
-                    print(f"❌ [PUBLISH-{publish_id}] ERROR - No connection to broker")
-                    logger.error("No connection to MQTT broker")
+                    print(f"❌ [PUBLISH-{publish_id}] Attempt {attempt + 1}: No connection to broker")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Wait before retry
+                        continue
+                    else:
+                        logger.error("No connection to MQTT broker")
+                        return
                 elif result.rc == mqtt.MQTT_ERR_QUEUE_SIZE:
-                    print(f"❌ [PUBLISH-{publish_id}] ERROR - Message queue is full")
-                    logger.error("MQTT message queue is full")
+                    print(f"❌ [PUBLISH-{publish_id}] Attempt {attempt + 1}: Message queue is full")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Wait before retry
+                        continue
+                    else:
+                        logger.error("MQTT message queue is full")
+                        return
                 else:
-                    print(f"❌ [PUBLISH-{publish_id}] ERROR - Unknown error code: {result.rc}")
-                    logger.error(f"Unknown MQTT error: {result.rc}")
-            else:
-                print(f"❌ [PUBLISH-{publish_id}] ERROR - MQTT CLIENT NOT CONNECTED")
-                print(f"   Client exists: {self.mqtt_client is not None}")
-                if self.mqtt_client:
-                    print(f"   Client connected: {self.mqtt_client.is_connected()}")
-                logger.warning("MQTT client not connected, cannot publish message")
-        except Exception as e:
-            print(f"❌ [PUBLISH-{publish_id}] EXCEPTION DURING PUBLISH")
-            print(f"   Exception type: {type(e).__name__}")
-            print(f"   Exception message: {e}")
-            logger.error(f"Failed to publish to MQTT: {e}")
+                    print(f"❌ [PUBLISH-{publish_id}] Attempt {attempt + 1}: Unknown error code: {result.rc}")
+                    if attempt < max_retries - 1:
+                        time.sleep(1)  # Wait before retry
+                        continue
+                    else:
+                        logger.error(f"Unknown MQTT error: {result.rc}")
+                        return
+                        
+            except Exception as e:
+                print(f"❌ [PUBLISH-{publish_id}] Attempt {attempt + 1}: Exception during publish: {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(1)  # Wait before retry
+                    continue
+                else:
+                    logger.error(f"Failed to publish to MQTT after {max_retries} attempts: {e}")
+                    return
         
         print(f"="*80)
     

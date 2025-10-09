@@ -26,7 +26,7 @@ class MQTTTester:
     def connect_redis(self):
         """Connect to Redis"""
         try:
-            self.redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            self.redis_client = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True)  # Use database 1 for plugin isolation
             self.redis_client.ping()
             print("✅ Redis connected")
             return True

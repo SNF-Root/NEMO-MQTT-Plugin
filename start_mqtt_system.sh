@@ -18,6 +18,9 @@ pkill -f external_mqtt_service 2>/dev/null || true
 pkill -f monitor_messages 2>/dev/null || true
 pkill -f redis_checker 2>/dev/null || true
 pkill -f watch_mqtt 2>/dev/null || true
+pkill -f comprehensive_flow_monitor 2>/dev/null || true
+pkill -f simple_mqtt_subscriber 2>/dev/null || true
+pkill -f simple_mqtt_monitor 2>/dev/null || true
 
 # Force kill mosquitto to avoid multiple instances
 echo "🔨 Force killing any existing MQTT brokers..."
@@ -99,7 +102,7 @@ echo "🚀 Starting Standalone MQTT Service (Development Mode)..."
 echo "📋 Note: This uses hardcoded configuration for development"
 echo "   For production, install plugin in NEMO-CE and use external_mqtt_service.py"
 echo ""
-python standalone_mqtt_service.py &
+python simple_standalone_mqtt.py &
 MQTT_SERVICE_PID=$!
 echo "✅ Standalone MQTT Service started (PID: $MQTT_SERVICE_PID)"
 

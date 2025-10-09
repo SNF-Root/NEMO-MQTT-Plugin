@@ -58,7 +58,7 @@ def check_redis_messages():
     """Check for messages in Redis"""
     try:
         # Connect to Redis
-        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+        r = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True)  # Use database 1 for plugin isolation
         r.ping()
         print("✅ Connected to Redis")
         
@@ -97,7 +97,7 @@ def check_redis_messages():
 def monitor_redis_realtime():
     """Monitor Redis in real-time without consuming messages"""
     try:
-        r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+        r = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True)  # Use database 1 for plugin isolation
         r.ping()
         print("✅ Connected to Redis")
         print("\n🔍 Monitoring Redis for new messages...")

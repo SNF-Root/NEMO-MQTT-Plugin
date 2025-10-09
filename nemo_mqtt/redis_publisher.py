@@ -20,20 +20,33 @@ class RedisMQTTPublisher:
         self._initialize_redis()
     
     def _initialize_redis(self):
-        """Initialize Redis client"""
-        try:
+        """Initialize Redis client with retry logic"""
+        max_retries = 5
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
             self.redis_client = redis.Redis(
                 host='localhost',
                 port=6379,
-                db=0,
-                decode_responses=True
+                db=1,  # Use database 1 for plugin isolation
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=5
             )
-            # Test connection
-            self.redis_client.ping()
-            logger.info("Connected to Redis for MQTT event publishing")
-        except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
-            self.redis_client = None
+                # Test connection
+                self.redis_client.ping()
+                logger.info("Connected to Redis for MQTT event publishing")
+                return
+            except Exception as e:
+                logger.warning(f"Redis connection attempt {attempt + 1}/{max_retries} failed: {e}")
+                if attempt < max_retries - 1:
+                    import time
+                    time.sleep(retry_delay)
+                    retry_delay *= 2  # Exponential backoff
+                else:
+                    logger.error(f"Failed to connect to Redis after {max_retries} attempts: {e}")
+                    self.redis_client = None
     
     def publish_event(self, topic: str, payload: str, qos: int = 0, retain: bool = False) -> bool:
         """
@@ -55,20 +68,23 @@ class RedisMQTTPublisher:
         print(f"   Topic: {topic}")
         print(f"   QoS: {qos}")
         print(f"   Retain: {retain}")
-        print(f"   Payload: {payload[:200]}{'...' if len(payload) > 200 else ''}")
+        print(f"   Payload: {payload[:100]}{'...' if len(payload) > 100 else ''}")
         
         if not self.redis_client:
-            print(f"❌ [REDIS-{redis_id}] Redis client not available")
-            logger.error("Redis client not available")
-            return False
+            print(f"❌ [REDIS-{redis_id}] Redis client not available, attempting to reconnect...")
+            logger.warning("Redis client not available, attempting to reconnect...")
+            self._initialize_redis()
+            if not self.redis_client:
+                print(f"❌ [REDIS-{redis_id}] Redis reconnection failed")
+                logger.error("Redis reconnection failed")
+                return False
         
         try:
             # Test Redis connection first
             self.redis_client.ping()
-            print(f"🔍 [REDIS-{redis_id}] Redis connection test successful")
+            print(f"✅ [REDIS-{redis_id}] Redis connection test successful")
             
             event = {
-                'id': redis_id,
                 'topic': topic,
                 'payload': payload,
                 'qos': qos,
@@ -77,15 +93,19 @@ class RedisMQTTPublisher:
             }
             
             print(f"🔍 [REDIS-{redis_id}] Event object created, pushing to Redis list...")
+            print(f"   Event: {json.dumps(event, indent=2)}")
             
             # Publish to Redis list
             result = self.redis_client.lpush('NEMO_mqtt_events', json.dumps(event))
             print(f"📤 [REDIS-{redis_id}] Redis lpush successful: {topic} (list length: {result})")
+            print(f"   📤 Message added to Redis list 'NEMO_mqtt_events'")
+            print(f"   🔄 Next: Standalone service will consume this message")
             logger.debug(f"Published event to Redis: {topic}")
             
             # Verify the message was added
             list_length = self.redis_client.llen('NEMO_mqtt_events')
             print(f"🔍 [REDIS-{redis_id}] Redis list 'NEMO_mqtt_events' now has {list_length} messages")
+            print(f"   ⏳ Waiting for standalone service to consume...")
             
             return True
             

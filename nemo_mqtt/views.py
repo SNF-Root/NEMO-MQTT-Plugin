@@ -64,28 +64,16 @@ class MQTTWebMonitor:
     def on_mqtt_connect(self, client, userdata, flags, rc):
         """MQTT connection callback"""
         if rc == 0:
+            print(f"✅ MQTT Monitor connected to broker")
             client.subscribe("nemo/#")
+            print(f"📡 MQTT Monitor subscribed to nemo/#")
+        else:
+            print(f"❌ MQTT Monitor connection failed: {rc}")
     
     def on_mqtt_message(self, client, userdata, msg):
         """MQTT message callback"""
-        import uuid
-        monitor_id = str(uuid.uuid4())[:8]
-        
-        print(f"\n" + "="*80)
-        print(f"📨 [MONITOR-{monitor_id}] MQTT MESSAGE RECEIVED")
-        print(f"="*80)
-        print(f"📍 Topic: '{msg.topic}'")
-        print(f"🎯 QoS: {msg.qos}")
-        print(f"🔒 Retain: {msg.retain}")
-        print(f"📦 Raw payload: {msg.payload}")
-        print(f"📏 Payload length: {len(msg.payload)} bytes")
-        
         try:
             payload = msg.payload.decode('utf-8')
-            print(f"✅ [MONITOR-{monitor_id}] Payload decoded successfully")
-            print(f"📦 Decoded payload: {payload}")
-            print(f"📏 Decoded length: {len(payload)} characters")
-            
             message_data = {
                 'id': len(self.messages) + 1,
                 'timestamp': datetime.now().isoformat(),
@@ -93,74 +81,34 @@ class MQTTWebMonitor:
                 'topic': msg.topic,
                 'payload': payload,
                 'qos': msg.qos,
-                'retain': msg.retain,
-                'monitor_id': monitor_id
+                'retain': msg.retain
             }
             
-            print(f"\n🔍 [MONITOR-{monitor_id}] MESSAGE DATA CREATED:")
-            print(f"   ID: {message_data['id']}")
-            print(f"   Timestamp: {message_data['timestamp']}")
-            print(f"   Source: {message_data['source']}")
-            print(f"   Topic: {message_data['topic']}")
-            print(f"   QoS: {message_data['qos']}")
-            print(f"   Retain: {message_data['retain']}")
-            print(f"   Payload: {message_data['payload'][:100]}{'...' if len(message_data['payload']) > 100 else ''}")
-            
-            print(f"\n📤 [MONITOR-{monitor_id}] ADDING TO MESSAGE LIST...")
             self.add_message(message_data)
-            print(f"✅ [MONITOR-{monitor_id}] MESSAGE ADDED SUCCESSFULLY")
-            print(f"   Total messages: {len(self.messages)}")
+            print(f"📨 MQTT Message: {msg.topic} - {payload[:50]}...")
             
-        except UnicodeDecodeError as e:
-            print(f"❌ [MONITOR-{monitor_id}] UNICODE DECODE ERROR")
-            print(f"   Error: {e}")
-            print(f"   Raw payload: {msg.payload}")
         except Exception as e:
-            print(f"❌ [MONITOR-{monitor_id}] ERROR PROCESSING MQTT MESSAGE")
-            print(f"   Exception type: {type(e).__name__}")
-            print(f"   Exception message: {e}")
-            print(f"   Topic: {msg.topic}")
-            print(f"   Payload: {msg.payload}")
-        
-        print(f"="*80)
+            print(f"❌ Error processing MQTT message: {e}")
     
     def add_message(self, message_data):
         """Add message to the list"""
-        import uuid
-        add_id = str(uuid.uuid4())[:8]
-        
-        print(f"\n🔍 [ADD-{add_id}] ADDING MESSAGE TO MONITOR")
-        print(f"   Message ID: {message_data.get('id', 'unknown')}")
-        print(f"   Topic: {message_data.get('topic', 'unknown')}")
-        print(f"   Source: {message_data.get('source', 'unknown')}")
-        print(f"   Current message count: {len(self.messages)}")
-        
         self.messages.append(message_data)
-        print(f"✅ [ADD-{add_id}] Message appended to list")
-        print(f"   New message count: {len(self.messages)}")
         
         # Keep only the last max_messages
         if len(self.messages) > self.max_messages:
-            old_count = len(self.messages)
             self.messages = self.messages[-self.max_messages:]
-            print(f"🔍 [ADD-{add_id}] Trimmed messages from {old_count} to {len(self.messages)}")
-        
-        # Store in cache for web access
-        print(f"🔍 [ADD-{add_id}] Storing in cache...")
-        cache.set('mqtt_monitor_messages', self.messages, timeout=3600)  # 1 hour timeout
-        print(f"✅ [ADD-{add_id}] Messages stored in cache")
-        print(f"   Cache key: mqtt_monitor_messages")
-        print(f"   Cache timeout: 3600 seconds (1 hour)")
-        print(f"   Stored message count: {len(self.messages)}")
     
     def start_monitoring(self):
         """Start monitoring in background thread"""
         if self.running:
+            print(f"📡 MQTT Monitor already running")
             return
         
+        print(f"🚀 Starting MQTT Monitor...")
         self.running = True
         self.monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
         self.monitor_thread.start()
+        print(f"✅ MQTT Monitor thread started")
     
     def stop_monitoring(self):
         """Stop monitoring"""
@@ -170,10 +118,14 @@ class MQTTWebMonitor:
     
     def _monitor_loop(self):
         """Main monitoring loop"""
+        print(f"🔍 MQTT Monitor loop starting...")
+        
         # Connect to MQTT
         if not self.connect_mqtt():
+            print(f"❌ MQTT Monitor failed to connect to broker")
             return
         
+        print(f"🔄 MQTT Monitor loop running...")
         # Monitor loop - just keep the thread alive
         # MQTT messages are handled by the on_mqtt_message callback
         while self.running:
@@ -300,47 +252,12 @@ def mqtt_monitor(request):
 @require_http_methods(["GET"])
 def mqtt_monitor_api(request):
     """API endpoint for fetching MQTT messages only"""
-    import uuid
-    api_id = str(uuid.uuid4())[:8]
-    
     try:
-        print(f"\n" + "="*80)
-        print(f"🔌 [API-{api_id}] MQTT MONITOR API CALLED")
-        print(f"="*80)
-        print(f"   User: {request.user}")
-        print(f"   Monitor running: {monitor.running}")
-        print(f"   Monitor messages: {len(monitor.messages)}")
-        
-        print(f"🔍 [API-{api_id}] Retrieving messages from cache...")
-        messages = cache.get('mqtt_monitor_messages', [])
-        print(f"📊 [API-{api_id}] Cache retrieval:")
-        print(f"   Total cached messages: {len(messages)}")
-        print(f"   Cache key: mqtt_monitor_messages")
-        
-        # Check TTL only if cache supports it (Redis does, LocMemCache doesn't)
-        try:
-            ttl = cache.ttl('mqtt_monitor_messages') if cache.get('mqtt_monitor_messages') else 'N/A'
-            print(f"   Cache TTL: {ttl}")
-        except AttributeError:
-            print(f"   Cache TTL: Not supported by this cache backend")
-        
-        # Fallback to in-memory messages if cache is empty
-        if not messages and monitor.messages:
-            print(f"🔄 [API-{api_id}] Cache empty, using in-memory messages as fallback")
-            messages = monitor.messages
-            # Re-store in cache
-            cache.set('mqtt_monitor_messages', messages, timeout=3600)
-            print(f"✅ [API-{api_id}] Re-stored {len(messages)} messages in cache")
+        # Get messages from the monitor
+        messages = monitor.messages
         
         # Filter for MQTT messages only
         mqtt_messages = [msg for msg in messages if msg.get('source') == 'MQTT']
-        print(f"📨 [API-{api_id}] MQTT message filtering:")
-        print(f"   Total messages: {len(messages)}")
-        print(f"   MQTT messages: {len(mqtt_messages)}")
-        
-        # Show details of MQTT messages
-        for i, msg in enumerate(mqtt_messages[-3:]):  # Show last 3
-            print(f"   {i+1}. Topic: {msg.get('topic', 'unknown')} - {msg.get('payload', 'unknown')[:50]}...")
         
         response_data = {
             'messages': mqtt_messages,
@@ -348,18 +265,11 @@ def mqtt_monitor_api(request):
             'monitoring': monitor.running
         }
         
-        print(f"📤 [API-{api_id}] API Response:")
-        print(f"   Messages: {len(response_data['messages'])}")
-        print(f"   Count: {response_data['count']}")
-        print(f"   Monitoring: {response_data['monitoring']}")
-        print(f"="*80)
-        
+        print(f"📊 API: {len(mqtt_messages)} MQTT messages")
         return JsonResponse(response_data)
         
     except Exception as e:
-        print(f"❌ [API-{api_id}] ERROR in API: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ API Error: {e}")
         return JsonResponse({'error': str(e), 'messages': [], 'count': 0, 'monitoring': False}, status=500)
 
 
