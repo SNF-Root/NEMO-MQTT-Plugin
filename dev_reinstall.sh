@@ -12,11 +12,11 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-NEMO_PATH=""
+NEMO_PATH="/Users/adenton/Desktop/nemo-ce"  # Default path for local development
 FORCE_REINSTALL=false
 SKIP_TESTS=false
 SKIP_BUILD=false
-BACKUP=true
+BACKUP=false
 RESTART_SERVER=false
 
 # Function to print colored output
@@ -41,7 +41,7 @@ show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -n, --nemo-path PATH    Path to NEMO-CE installation (required)"
+    echo "  -n, --nemo-path PATH    Path to NEMO-CE installation (default: /Users/adenton/Desktop/nemo-ce)"
     echo "  -f, --force            Force reinstall even if package exists"
     echo "  -s, --skip-tests       Skip running tests"
     echo "  -b, --skip-build       Skip building package (use existing dist/)"
@@ -50,9 +50,9 @@ show_usage() {
     echo "  -h, --help             Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0 -n /path/to/nemo-ce"
-    echo "  $0 -n /path/to/nemo-ce --force --skip-tests"
-    echo "  $0 -n /path/to/nemo-ce --no-backup"
+    echo "  $0                      # Use default path"
+    echo "  $0 --force --skip-tests # Quick reinstall with defaults"
+    echo "  $0 -n /path/to/nemo-ce  # Use custom path"
 }
 
 # Parse command line arguments
@@ -95,14 +95,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate NEMO path
-if [[ -z "$NEMO_PATH" ]]; then
-    print_error "NEMO path is required. Use -n or --nemo-path"
-    show_usage
-    exit 1
-fi
-
 if [[ ! -d "$NEMO_PATH" ]]; then
     print_error "NEMO path does not exist: $NEMO_PATH"
+    print_error "Either create the directory or specify a different path with -n"
     exit 1
 fi
 
@@ -132,7 +127,9 @@ fi
 
 print_status "NEMO project root: $NEMO_PROJECT_ROOT"
 print_status "NEMO plugins directory: $NEMO_PLUGINS_DIR"
-
+echo ""
+print_success "✨ Using default NEMO path (run with -h to see options)"
+echo ""
 print_status "Starting NEMO MQTT Plugin development reinstall..."
 print_status "NEMO path: $NEMO_PATH"
 print_status "Force reinstall: $FORCE_REINSTALL"
@@ -310,19 +307,18 @@ if [[ -z "$EXTRACTED_PLUGIN_DIR" ]]; then
     exit 1
 fi
 
-# Create the NEMO subdirectory if it doesn't exist
-NEMO_PLUGIN_DIR="$NEMO_PLUGINS_DIR/NEMO"
-mkdir -p "$NEMO_PLUGIN_DIR"
+# Install directly to NEMO/plugins/NEMO_mqtt (not NEMO/plugins/NEMO/NEMO_mqtt)
+NEMO_PLUGIN_DIR="$NEMO_PLUGINS_DIR/NEMO_mqtt"
 
-# Copy the plugin files to the NEMO subdirectory
-cp -r "$EXTRACTED_PLUGIN_DIR" "$NEMO_PLUGIN_DIR/"
+# Copy the plugin files directly
+cp -r "$EXTRACTED_PLUGIN_DIR" "$NEMO_PLUGINS_DIR/"
 
 # Clean up temporary directory
 cd "$DEV_DIR"
 rm -rf "$TEMP_DIR"
 
-if [[ -f "$NEMO_PLUGIN_DIR/NEMO_mqtt/__init__.py" ]] && [[ -f "$NEMO_PLUGIN_DIR/NEMO_mqtt/apps.py" ]]; then
-    print_success "Plugin installed successfully to $NEMO_PLUGIN_DIR/NEMO_mqtt"
+if [[ -f "$NEMO_PLUGIN_DIR/__init__.py" ]] && [[ -f "$NEMO_PLUGIN_DIR/apps.py" ]]; then
+    print_success "Plugin installed successfully to $NEMO_PLUGIN_DIR"
 else
     print_error "Plugin installation failed"
     exit 1

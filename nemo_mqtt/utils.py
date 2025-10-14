@@ -13,16 +13,37 @@ logger = logging.getLogger(__name__)
 
 def get_mqtt_config() -> Optional['MQTTConfiguration']:
     """
-    Get MQTT configuration from database.
+    Get MQTT configuration from database with caching.
+    
+    Cache is automatically cleared when configuration is saved in Django admin.
+    This ensures configuration changes take effect immediately without restart.
     
     Returns:
         MQTTConfiguration instance or None if not configured
     """
+    from django.core.cache import cache
+    
+    # Try to get from cache first
+    config = cache.get('mqtt_active_config')
+    
+    if config is not None:
+        # Return cached config (could be None if no config exists)
+        return config if config != 'NO_CONFIG' else None
+    
+    # Cache miss - query database
     try:
         from .models import MQTTConfiguration
         
         # Get the first enabled configuration
         config = MQTTConfiguration.objects.filter(enabled=True).first()
+        
+        # Cache the result (cache None as special value to avoid repeated queries)
+        # Cache timeout: 300 seconds (5 minutes) as fallback if signals don't fire
+        if config:
+            cache.set('mqtt_active_config', config, 300)
+        else:
+            cache.set('mqtt_active_config', 'NO_CONFIG', 300)
+        
         return config
     except Exception as e:
         logger.warning(f"Could not load MQTT configuration from database: {e}")

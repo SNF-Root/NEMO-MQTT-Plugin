@@ -80,6 +80,7 @@ class MQTTCustomization(CustomizationBase):
         config.enabled = request.POST.get('mqtt_enabled') == 'enabled'
         config.broker_host = request.POST.get('mqtt_broker_host', config.broker_host)
         config.broker_port = int(request.POST.get('mqtt_broker_port', config.broker_port))
+        config.keepalive = int(request.POST.get('mqtt_keepalive', config.keepalive))
         config.client_id = request.POST.get('mqtt_client_id', config.client_id)
         config.username = request.POST.get('mqtt_username', config.username)
         config.password = request.POST.get('mqtt_password', config.password)

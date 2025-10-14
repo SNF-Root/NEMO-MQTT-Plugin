@@ -3,6 +3,9 @@ Models for MQTT plugin configuration and message history.
 """
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.cache import cache
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
 
 
 class MQTTConfiguration(models.Model):
@@ -119,3 +122,18 @@ class MQTTEventFilter(models.Model):
     
     def __str__(self):
         return f"{self.get_event_type_display()} ({'Enabled' if self.enabled else 'Disabled'})"
+
+
+# Signal handlers to clear cache when MQTT configuration changes
+@receiver(post_save, sender=MQTTConfiguration)
+def clear_mqtt_config_cache_on_save(sender, instance, **kwargs):
+    """Clear the MQTT configuration cache when a configuration is saved"""
+    cache.delete('mqtt_active_config')
+    print(f"🔄 MQTT configuration cache cleared after saving: {instance.name}")
+
+
+@receiver(post_delete, sender=MQTTConfiguration)
+def clear_mqtt_config_cache_on_delete(sender, instance, **kwargs):
+    """Clear the MQTT configuration cache when a configuration is deleted"""
+    cache.delete('mqtt_active_config')
+    print(f"🔄 MQTT configuration cache cleared after deleting: {instance.name}")

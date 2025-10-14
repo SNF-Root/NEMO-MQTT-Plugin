@@ -15,6 +15,11 @@ from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.cache import cache
 
+try:
+    from NEMO_mqtt.health_monitor import HealthMonitor
+except ImportError:
+    HealthMonitor = None
+
 
 class MQTTWebMonitor:
     """Web-based MQTT monitoring for Django views"""
@@ -229,9 +234,15 @@ def mqtt_monitor(request):
         'title': 'MQTT Messages',
     })
     
+    # Add cache-busting headers to prevent browser caching
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    
     print(f"✅ [VIEW-{view_id}] Template rendered successfully")
     print(f"   Response status: {response.status_code}")
     print(f"   Response content length: {len(response.content)}")
+    print(f"   Cache headers added: no-cache")
     
     # Check if response contains our debug content
     content_str = response.content.decode('utf-8')
@@ -292,3 +303,60 @@ def mqtt_monitor_control(request):
         return JsonResponse({'status': 'stopped'})
     else:
         return JsonResponse({'error': 'Invalid action'}, status=400)
+
+
+@require_http_methods(["GET"])
+def health_check(request):
+    """
+    Health check endpoint for monitoring systems.
+    
+    Returns comprehensive health status of all MQTT plugin components:
+    - Redis connectivity and performance
+    - MQTT broker connectivity
+    - External MQTT service status
+    - Message queue status
+    
+    Returns HTTP 200 if healthy, 503 if unhealthy.
+    """
+    if HealthMonitor is None:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'Health monitoring not available',
+            'timestamp': time.time()
+        }, status=503)
+    
+    try:
+        # Get MQTT configuration for connection details
+        from NEMO_mqtt.utils import get_mqtt_config
+        config = get_mqtt_config()
+        
+        if config:
+            mqtt_host = config.broker_host
+            mqtt_port = config.broker_port
+        else:
+            mqtt_host = getattr(settings, 'MQTT_BROKER_HOST', 'localhost')
+            mqtt_port = getattr(settings, 'MQTT_BROKER_PORT', 1883)
+        
+        # Initialize health monitor
+        monitor = HealthMonitor(
+            redis_host=getattr(settings, 'REDIS_HOST', 'localhost'),
+            redis_port=getattr(settings, 'REDIS_PORT', 6379),
+            redis_db=1,  # Plugin uses DB 1
+            mqtt_host=mqtt_host,
+            mqtt_port=mqtt_port
+        )
+        
+        # Run health checks
+        results = monitor.run_health_checks()
+        
+        # Determine HTTP status code
+        status_code = 200 if results['overall'] == 'healthy' else 503
+        
+        return JsonResponse(results, status=status_code)
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': time.time()
+        }, status=503)

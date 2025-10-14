@@ -93,7 +93,7 @@ If you don't see messages:
 
 1. **Check Redis**: `redis-cli ping`
 2. **Check MQTT broker**: `lsof -i :1883`
-3. **Check external MQTT service**: `python3 start_mqtt_service.py`
+3. **Check Redis-MQTT Bridge service**: `pgrep -f redis_mqtt_bridge` or `python -m NEMO_mqtt.redis_mqtt_bridge`
 4. **Check Django logs** for signal handler errors
 5. **Verify MQTT plugin is enabled** in Django settings
 

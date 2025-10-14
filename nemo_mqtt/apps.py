@@ -17,7 +17,7 @@ class MqttPluginConfig(AppConfig):
     def ready(self):
         """
         Initialize the MQTT plugin when Django starts.
-        This sets up signal handlers, MQTT client, and starts the external MQTT service.
+        This sets up signal handlers and starts the Redis-MQTT Bridge service.
         """
         # Prevent multiple initializations during development auto-reload
         if self._initialized:
@@ -29,10 +29,16 @@ class MqttPluginConfig(AppConfig):
             return
             
         # Import signal handlers to register them immediately
-        from . import signals
+        try:
+            from . import signals
+        except Exception as e:
+            logger.warning(f"Failed to import signals: {e}")
         
         # Import customization to register it immediately
-        from . import customization
+        try:
+            from . import customization
+        except Exception as e:
+            logger.warning(f"Failed to import customization: {e}")
         
         # Mark as initialized to prevent multiple calls
         self._initialized = True
@@ -47,14 +53,14 @@ class MqttPluginConfig(AppConfig):
             logger.info(f"MQTT config result: {config}")
             if config and config.enabled:
                 logger.info(f"MQTT plugin initialized successfully with config: {config.name}")
-                logger.info("MQTT events will be published via Redis to external MQTT service")
+                logger.info("MQTT events will be published via Redis to MQTT broker")
                 
-                # Start the external MQTT service automatically
+                # Start the Redis-MQTT Bridge service automatically
                 self._start_external_mqtt_service()
             else:
                 logger.info("MQTT plugin loaded but no enabled configuration found")
-                # Force start the external MQTT service anyway for development
-                logger.info("Starting external MQTT service anyway for development...")
+                # Force start the Redis-MQTT Bridge anyway for development
+                logger.info("Starting Redis-MQTT Bridge anyway for development...")
                 self._start_external_mqtt_service()
                 
         except Exception as e:
@@ -63,41 +69,42 @@ class MqttPluginConfig(AppConfig):
         logger.info("MQTT plugin: Signal handlers and customization registered. Events will be published via Redis.")
     
     def _start_external_mqtt_service(self):
-        """Start the external MQTT service automatically"""
-        # Prevent multiple auto service starts
+        """Start the Redis-MQTT Bridge service automatically"""
+        # Prevent multiple service starts
         if self._auto_service_started:
-            logger.info("Auto MQTT service already started, skipping...")
+            logger.info("Redis-MQTT Bridge already started, skipping...")
             return
             
         try:
-            logger.info("Starting external MQTT service automatically...")
+            logger.info("Starting Redis-MQTT Bridge service automatically...")
             
-            # Import and start the auto MQTT service
-            from .auto_mqtt_service import auto_mqtt_service
+            # Import and get the singleton bridge instance
+            from .redis_mqtt_bridge import get_mqtt_bridge
+            mqtt_bridge = get_mqtt_bridge()
             
             # Start the service in a separate thread
-            def run_auto_service():
+            def run_bridge_service():
                 try:
-                    auto_mqtt_service.start()
+                    mqtt_bridge.start()
                     
                     # Keep the service running
-                    while True:
+                    while mqtt_bridge.running:
                         time.sleep(1)
                         
                 except Exception as e:
-                    logger.error(f"Auto MQTT service error: {e}")
+                    logger.error(f"Redis-MQTT Bridge error: {e}")
             
             # Start the service in a daemon thread
-            mqtt_thread = threading.Thread(target=run_auto_service, daemon=True)
+            mqtt_thread = threading.Thread(target=run_bridge_service, daemon=True)
             mqtt_thread.start()
             
             # Mark as started
             self._auto_service_started = True
-            logger.info("External MQTT service started successfully")
+            logger.info("Redis-MQTT Bridge started successfully")
                 
         except Exception as e:
-            logger.error(f"Failed to start external MQTT service: {e}")
-            logger.info("MQTT events will still be published to Redis, but external MQTT service is not running")
+            logger.error(f"Failed to start Redis-MQTT Bridge: {e}")
+            logger.info("MQTT events will still be published to Redis, but bridge service is not running")
     
     def get_migration_args(self):
         """Get migration-related command line arguments"""

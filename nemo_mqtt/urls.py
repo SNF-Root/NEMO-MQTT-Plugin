@@ -11,4 +11,7 @@ urlpatterns = [
     path('monitor/', views.mqtt_monitor, name='monitor'),
     path('monitor/api/', views.mqtt_monitor_api, name='monitor_api'),
     path('monitor/control/', views.mqtt_monitor_control, name='monitor_control'),
+    
+    # Health Check Endpoint
+    path('health/', views.health_check, name='health_check'),
 ]
