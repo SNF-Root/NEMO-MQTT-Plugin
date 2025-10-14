@@ -443,6 +443,14 @@ class RedisMQTTBridge:
         """Initialize MQTT client with ConnectionManager for robust retry"""
         def connect_mqtt():
             """Connection function for ConnectionManager"""
+            # Reload configuration to pick up any changes
+            print("🔄 Reloading MQTT configuration from Django...")
+            self.config = get_mqtt_config()
+            if not self.config or not self.config.enabled:
+                raise Exception("No enabled MQTT configuration found")
+            print(f"✅ Config reloaded: {self.config.name}")
+            print(f"   📍 Broker: {self.config.broker_host}:{self.config.broker_port}")
+            
             # Create unique client ID
             import socket
             client_id = f"nemo_bridge_{socket.gethostname()}_{os.getpid()}"
@@ -694,6 +702,7 @@ class RedisMQTTBridge:
         publish_id = str(uuid.uuid4())[:8]
         
         print(f"\n🔍 [PUBLISH-{publish_id}] Attempting to publish to MQTT broker")
+        print(f"   📍 Broker: {self.broker_host}:{self.broker_port}")
         print(f"   Topic: {topic}")
         print(f"   QoS: {qos}")
         print(f"   Retain: {retain}")
@@ -708,6 +717,7 @@ class RedisMQTTBridge:
                     logger.error(f"Failed to publish message: {result.rc}")
                 else:
                     print(f"✅ [PUBLISH-{publish_id}] Message published successfully to MQTT broker")
+                    print(f"   📍 Published to: {self.broker_host}:{self.broker_port}")
             else:
                 print(f"❌ [PUBLISH-{publish_id}] MQTT client not connected, cannot publish message")
                 logger.warning("MQTT client not connected, cannot publish message")
