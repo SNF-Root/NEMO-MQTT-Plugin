@@ -64,47 +64,47 @@ A comprehensive Django plugin that provides MQTT integration for NEMO tool usage
 
 ## Features
 
-### 🔌 **Easy Integration**
+### **Easy Integration**
 - Simple Django plugin installation with automatic setup
 - One-command installation with `install_standalone.py`
 - Automatic Django configuration via management commands
 - Seamless integration with NEMO-CE
 
-### 📡 **Real-time MQTT Publishing**
+### **Real-time MQTT Publishing**
 - **Tool Events**: Tool creation, updates, enable/disable status changes
 - **Usage Events**: Tool usage start/end with detailed timing information
 - **Area Events**: Area access records and reservation changes
 - **Reservation Events**: Reservation creation, updates, and cancellations
 - **Custom Events**: Extensible event system for additional NEMO events
 
-### 🔄 **Robust Architecture**
+### **Robust Architecture**
 - **Redis Bridge**: Uses Redis as intermediary to prevent Django connection issues
 - **External Service**: Standalone MQTT service maintains persistent broker connections
 - **Auto-reconnection**: Automatic reconnection with exponential backoff
 - **Message Queuing**: Reliable message delivery with Redis queuing
 
-### 📊 **Comprehensive Monitoring**
+### **Comprehensive Monitoring**
 - **Web Dashboard**: Real-time MQTT message monitoring at `/mqtt/monitor/`
 - **Message History**: Last 100 messages with JSON syntax highlighting
 - **Filtering**: Filter messages by source (Redis/MQTT) and topic
 - **Auto-refresh**: Real-time updates with start/stop controls
 - **Health Checks**: Built-in monitoring and debugging tools
 
-### ⚙️ **Advanced Configuration**
+### **Advanced Configuration**
 - **Django Admin**: Full configuration interface at `/customization/mqtt/`
 - **Multiple Configurations**: Support for multiple MQTT broker configurations
 - **Event Filtering**: Granular control over which events to publish
 - **Topic Customization**: Configurable topic prefixes and structures
 - **QoS Settings**: Quality of Service level configuration
 
-### 🔒 **Security & Reliability**
+### **Security & Reliability**
 - **SSL/TLS Support**: Full TLS/SSL encryption with certificate management
 - **Authentication**: Username/password and certificate-based authentication
 - **Message Logging**: Complete audit trail of all MQTT messages
 - **Error Handling**: Comprehensive error handling and recovery
 - **Connection Management**: Automatic connection health monitoring
 
-### 🛠️ **Development & Testing**
+### **Development & Testing**
 - **Development Mode**: Auto-starts Redis, MQTT broker, and services
 - **Testing Tools**: Built-in testing and debugging utilities
 - **Monitoring Scripts**: Command-line monitoring and testing tools
@@ -122,21 +122,7 @@ A comprehensive Django plugin that provides MQTT integration for NEMO tool usage
 
 ### Installation Methods
 
-#### **Method 1: One-Command Installation (Easiest)**
-
-```bash
-# Download and run the standalone installer
-python install_standalone.py --nemo-path /path/to/your/nemo-ce
-```
-
-This single command will:
-- Install the Python package
-- Add to Django INSTALLED_APPS
-- Configure URL patterns
-- Run database migrations
-- Verify the installation
-
-#### **Method 2: PyPI Installation (Recommended)**
+#### **Method 1: PyPI Installation (Recommended)**
 
    ```bash
 # Install from PyPI
@@ -150,7 +136,7 @@ This single command will:
 python manage.py migrate NEMO_mqtt
    ```
 
-#### **Method 3: Development Installation**
+#### **Method 2: Development Installation**
    
    ```bash
 # Clone the repository
@@ -166,7 +152,7 @@ python manage.py setup_nemo_integration
 python manage.py migrate NEMO_mqtt
 ```
 
-#### **Method 4: Manual Setup**
+#### **Method 3: Manual Setup**
 
 1. **Install the plugin:**
    ```bash
@@ -252,59 +238,14 @@ For production deployment:
 
 4. **Start MQTT Service:**
    ```bash
-   # Start the external MQTT service
-   python -m NEMO_mqtt.external_mqtt_service
+   # Start the Redis-MQTT bridge service
+   python -m NEMO_mqtt.redis_mqtt_bridge
    
    # Or use the systemd service (if configured)
    sudo systemctl start nemo-mqtt
    sudo systemctl enable nemo-mqtt
    ```
 
-### **Docker Compose Setup**
-
-For easy deployment with Docker:
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-
-  mosquitto:
-    image: eclipse-mosquitto:latest
-    ports:
-      - "1883:1883"
-      - "9001:9001"
-    volumes:
-      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
-
-  nemo:
-    build: .
-    ports:
-      - "8000:8000"
-    depends_on:
-      - redis
-      - mosquitto
-    environment:
-      - REDIS_HOST=redis
-      - MQTT_BROKER_HOST=mosquitto
-
-volumes:
-  redis_data:
-```
-
-```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f nemo
-```
 
 ## Configuration
 
@@ -346,6 +287,120 @@ Configure MQTT settings through the Django customization interface at `/customiz
 #### **Logging & Monitoring**
 - **Log Messages**: Log all MQTT messages to database
 - **Log Level**: Logging level (DEBUG, INFO, WARNING, ERROR)
+
+### Service Modes (AUTO vs EXTERNAL)
+
+The MQTT plugin operates in two distinct modes, each designed for different deployment scenarios:
+
+#### **AUTO Mode (Development/Testing)**
+- **Purpose**: Automatically manages all required services for development and testing
+- **Behavior**: 
+  - Kills existing MQTT brokers (`pkill -f mosquitto`) to prevent conflicts
+  - Starts its own Redis server and Mosquitto MQTT broker
+  - Manages service lifecycle automatically
+- **Use Case**: Development, testing, and single-instance deployments
+- **Configuration**: Set via `RedisMQTTBridge(auto_start=True)` in `apps.py`
+
+#### **EXTERNAL Mode (Production)**
+- **Purpose**: Connects to existing production services without interference
+- **Behavior**:
+  - Connects to existing Redis and MQTT broker
+  - Does NOT start or stop any services
+  - Safe for production environments with shared MQTT brokers
+- **Use Case**: Production deployments, shared infrastructure, Docker containers
+- **Configuration**: Set via `RedisMQTTBridge(auto_start=False)` in `apps.py`
+
+#### **Mode Selection Logic**
+```python
+# Current behavior (AUTO mode)
+_mqtt_bridge_instance = RedisMQTTBridge(auto_start=True)  # Kills existing MQTT brokers!
+
+# Recommended for production (EXTERNAL mode)
+_mqtt_bridge_instance = RedisMQTTBridge(auto_start=False)  # Safe for production
+```
+
+### Redis Configuration Details
+
+#### **Database Isolation**
+- **Database**: Uses Redis DB 1 (not default DB 0)
+- **Purpose**: Prevents conflicts with other applications using Redis
+- **Queue Name**: `NEMO_mqtt_events` (Redis list)
+- **Isolation**: Complete separation from system Redis usage
+
+#### **Redis Connection Settings**
+```python
+# Default Redis connection (from redis_mqtt_bridge.py)
+redis.Redis(
+    host='localhost',
+    port=6379,
+    db=1,  # ← Uses database 1 for isolation
+    decode_responses=True,
+    socket_connect_timeout=5,
+    socket_timeout=5
+)
+```
+
+#### **Why Database 1?**
+1. **Isolation**: Prevents interference with other Redis applications
+2. **Safety**: System Redis typically uses DB 0
+3. **Debugging**: Easy to identify plugin-specific data
+4. **Cleanup**: Can safely flush DB 1 without affecting other services
+
+### MQTT Broker Configuration
+
+#### **Port Management**
+- **Default Port**: 1883 (standard MQTT port)
+- **TLS Port**: 8883 (for secure connections)
+- **AUTO Mode**: Starts Mosquitto on configured port
+- **EXTERNAL Mode**: Connects to existing broker on configured port
+
+#### **Connection Behavior**
+```python
+# Configuration loading (happens on every connection)
+self.config = get_mqtt_config()  # Reloads from Django database
+self.broker_host = self.config.broker_host or 'localhost'
+self.broker_port = self.config.broker_port or 1883
+```
+
+#### **Real-time Configuration Updates**
+- **Configuration Reload**: Settings reloaded on every MQTT connection
+- **Port Changes**: New port settings picked up automatically on reconnect
+- **No Restart Required**: Configuration changes take effect on next connection
+- **Debug Output**: Shows current broker:port in all publish operations
+
+### Important Configuration Gotchas
+
+#### **1. AUTO Mode Kills Existing MQTT Brokers**
+```bash
+# This happens in AUTO mode (development)
+pkill -f mosquitto        # Kills ALL Mosquitto processes
+pkill -9 mosquitto        # Force kill if needed
+```
+**Solution**: Use EXTERNAL mode in production or when sharing MQTT brokers.
+
+#### **2. Redis Database 1 Usage**
+```bash
+# Check plugin messages (use DB 1, not default DB 0)
+redis-cli -n 1 llen NEMO_mqtt_events
+redis-cli -n 1 lrange NEMO_mqtt_events 0 -1
+```
+
+#### **3. Configuration Caching**
+- **Django Cache**: MQTT configuration cached in Django
+- **Cache Clearing**: Cache cleared when configuration is saved
+- **Real-time Updates**: Bridge reloads config on every connection
+
+#### **4. Service Startup Order**
+1. **Django App Ready**: Plugin initializes in `apps.py`
+2. **Signal Registration**: MQTT signal handlers registered
+3. **Bridge Startup**: Redis-MQTT bridge starts (AUTO or EXTERNAL mode)
+4. **Service Connection**: Bridge connects to Redis and MQTT broker
+
+#### **5. Lock File Management**
+- **Lock File**: `/tmp/nemo_mqtt_bridge.lock`
+- **Purpose**: Prevents multiple bridge instances
+- **Auto-Cleanup**: Stale locks automatically cleaned up
+- **Process Detection**: Checks if old process is still running
 
 ### Event Filtering
 
@@ -407,26 +462,20 @@ Access the real-time monitoring dashboard at `/mqtt/monitor/`:
 # Monitor both Redis and MQTT messages
 python NEMO_mqtt/monitoring/mqtt_monitor.py
 
-# Or use the shell script
-./monitor_mqtt.sh mqtt
+# Or use the monitoring script
+./scripts/monitor_services.sh
 ```
 
 #### **Redis-Only Monitor**
 ```bash
 # Monitor Redis messages only
 python NEMO_mqtt/monitoring/redis_checker.py
-
-# Or use the shell script
-./monitor_mqtt.sh redis
 ```
 
 #### **Signal Testing**
 ```bash
 # Test MQTT signals and message flow
-python NEMO_mqtt/test_mqtt.py
-
-# Or use the shell script
-./monitor_mqtt.sh test
+python manage.py test_mqtt_api
 ```
 
 ### Health Checks
@@ -480,7 +529,7 @@ After=network.target redis.service
 Type=simple
 User=nemo
 WorkingDirectory=/path/to/nemo-ce
-ExecStart=/path/to/nemo-ce/venv/bin/python -m NEMO_mqtt.external_mqtt_service
+ExecStart=/path/to/nemo-ce/venv/bin/python -m NEMO_mqtt.redis_mqtt_bridge
 Restart=always
 RestartSec=5
 
@@ -533,7 +582,7 @@ The NEMO MQTT Plugin uses a sophisticated multi-layered architecture designed fo
 - **Ordering**: FIFO message processing ensures correct event sequence
 - **Isolation**: Separate Redis database (DB 1) for plugin isolation
 
-#### 3. **External MQTT Service**
+#### 3. **Redis-MQTT Bridge Service**
 - **Standalone Process**: Independent of Django, maintains persistent MQTT connections
 - **Message Consumer**: Consumes messages from Redis queue
 - **MQTT Publisher**: Publishes messages to MQTT broker with proper QoS
@@ -579,7 +628,7 @@ sequenceDiagram
 - **Hot Reloading**: Changes reflect immediately without restart
 
 #### **Production Mode**
-- **External Service**: Separate process for MQTT service
+- **External Service**: Separate process for Redis-MQTT bridge service
 - **Database Configuration**: Settings stored in Django database
 - **Production Broker**: Connect to production MQTT broker
 - **Monitoring**: Full logging and health check integration
@@ -607,23 +656,20 @@ sequenceDiagram
 
 2. **Set Up NEMO Integration:**
    ```bash
-   # Run the setup script for your NEMO installation
-   ./setup_nemo_integration.sh /path/to/your/nemo-ce
-   
-   # Or use the management command
+   # Use the management command
    cd /path/to/your/nemo-ce
    python manage.py setup_nemo_integration
+   python manage.py migrate NEMO_mqtt
    ```
 
 3. **Start Development Services:**
    ```bash
-   # Terminal 1: Start NEMO
+   # Terminal 1: Start NEMO (auto-starts Redis, MQTT broker, and service)
    cd /path/to/your/nemo-ce
    python manage.py runserver
    
-   # Terminal 2: Start MQTT system (auto-starts Redis, MQTT broker, service)
-   cd /path/to/nemo-mqtt-plugin
-   ./start_mqtt_system.sh
+   # The plugin will automatically start all required services in AUTO mode
+   # Access monitoring at: http://localhost:8000/mqtt/monitor/
    ```
 
 #### **Development Features**
@@ -639,7 +685,7 @@ sequenceDiagram
 - **`NEMO_mqtt/signals.py`**: Django signal handlers for MQTT events
 - **`NEMO_mqtt/views.py`**: Web monitoring dashboard and API endpoints
 - **`NEMO_mqtt/models.py`**: Database models for configuration and logging
-- **`NEMO_mqtt/external_mqtt_service.py`**: Standalone MQTT service
+- **`NEMO_mqtt/redis_mqtt_bridge.py`**: Redis-MQTT bridge service
 - **`NEMO_mqtt/redis_publisher.py`**: Redis-based message publishing
 - **`templates/NEMO_mqtt/monitor.html`**: Web monitoring dashboard UI
 
@@ -672,7 +718,7 @@ pytest --cov=NEMO_mqtt --cov-report=html
 
 ```bash
 # Test MQTT signals and message flow
-python NEMO_mqtt/test_mqtt.py
+python manage.py test_mqtt_api
 
 # Monitor MQTT messages in real-time
 python NEMO_mqtt/monitoring/mqtt_monitor.py
@@ -680,8 +726,8 @@ python NEMO_mqtt/monitoring/mqtt_monitor.py
 # Test Redis connectivity
 python NEMO_mqtt/monitoring/redis_checker.py
 
-# Test MQTT API endpoints
-python manage.py test_mqtt_api
+# Run comprehensive tests
+python manage.py test NEMO_mqtt
 ```
 
 #### **Testing Scenarios**
@@ -976,6 +1022,32 @@ client.loop_forever()
 
 ### Common Issues
 
+#### **MQTT Broker Port 1883 Gets Closed on NEMO Startup**
+**Symptom**: Your existing MQTT broker on port 1883 stops working when NEMO starts.
+
+**Root Cause**: Plugin runs in AUTO mode by default, which kills existing MQTT brokers.
+
+**Solution**:
+1. **Switch to EXTERNAL mode** (recommended for production):
+   ```python
+   # In NEMO_mqtt/apps.py, change line 82-83:
+   from .redis_mqtt_bridge import RedisMQTTBridge
+   mqtt_bridge = RedisMQTTBridge(auto_start=False)  # EXTERNAL mode
+   ```
+
+2. **Or ensure your MQTT broker restarts after NEMO**:
+   ```bash
+   # Add to your startup script
+   systemctl restart mosquitto
+   ```
+
+**Debug**: Check if AUTO mode is running:
+```bash
+# Look for cleanup messages in logs
+grep "Cleaning up existing services" /var/log/nemo.log
+grep "pkill.*mosquitto" /var/log/nemo.log
+```
+
 #### **No MQTT Messages Published**
 1. Check Redis connection: `redis-cli ping`
 2. Verify MQTT configuration is enabled
@@ -993,6 +1065,27 @@ client.loop_forever()
 2. Check topic structure and naming
 3. Validate payload format and required fields
 4. Review MQTT broker logs
+
+#### **Redis Database Issues**
+**Symptom**: Messages not appearing in Redis queue.
+
+**Check**: Ensure you're looking at the correct Redis database:
+```bash
+# Wrong - this checks DB 0 (default)
+redis-cli llen NEMO_mqtt_events
+
+# Correct - this checks DB 1 (plugin uses DB 1)
+redis-cli -n 1 llen NEMO_mqtt_events
+redis-cli -n 1 lrange NEMO_mqtt_events 0 -1
+```
+
+#### **Configuration Not Updating**
+**Symptom**: Port changes in Django admin don't take effect.
+
+**Solution**: Configuration reloads on next MQTT connection. Force reconnection by:
+1. Restarting the MQTT service
+2. Or wait for automatic reconnection (happens on connection loss)
+3. Check debug output shows new broker:port
 
 ### Debug Commands
 
@@ -1046,8 +1139,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Version 1.0.0
 - Initial release with full MQTT integration
-- Redis bridge architecture for reliability
-- Web-based monitoring dashboard
-- Comprehensive configuration options
-- Development and production deployment support
-- Full test suite and documentation
+- Redis-MQTT bridge architecture for reliability
+- Web-based monitoring dashboard at `/mqtt/monitor/`
+- Comprehensive configuration options via Django admin
+- AUTO/EXTERNAL mode support for development and production
+- Real-time configuration updates and port management
+- Full test suite and comprehensive documentation

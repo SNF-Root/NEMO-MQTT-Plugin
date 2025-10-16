@@ -93,6 +93,77 @@ class MQTTCustomization(CustomizationBase):
         config.client_key_content = request.POST.get('mqtt_client_key', config.client_key_content)
         config.insecure = request.POST.get('mqtt_insecure') == 'enabled'
         
+        # Validate TLS certificates if TLS is enabled
+        if config.use_tls:
+            print("🔐 TLS Configuration Validation:")
+            print(f"   🔐 TLS Version: {config.tls_version}")
+            print(f"   🔐 Insecure Mode: {config.insecure}")
+            
+            # Validate CA certificate
+            if config.ca_cert_content:
+                from .utils import validate_tls_certificate
+                ca_validation = validate_tls_certificate(config.ca_cert_content, "CA")
+                print(f"   🔐 CA Certificate Validation:")
+                print(f"   🔐   Valid: {ca_validation['valid']}")
+                if ca_validation['valid']:
+                    print(f"   🔐   Subject: {ca_validation['cert_info'].get('subject', 'N/A')}")
+                    print(f"   🔐   Issuer: {ca_validation['cert_info'].get('issuer', 'N/A')}")
+                    print(f"   🔐   Valid Until: {ca_validation['cert_info'].get('not_after', 'N/A')}")
+                else:
+                    print(f"   🔐   Error: {ca_validation['error']}")
+                    print(f"   🔐   Preview: {ca_validation['preview']}")
+            else:
+                print(f"   🔐 CA Certificate: Not provided")
+            
+            # Validate client certificate
+            if config.client_cert_content:
+                client_validation = validate_tls_certificate(config.client_cert_content, "CLIENT")
+                print(f"   🔐 Client Certificate Validation:")
+                print(f"   🔐   Valid: {client_validation['valid']}")
+                if client_validation['valid']:
+                    print(f"   🔐   Subject: {client_validation['cert_info'].get('subject', 'N/A')}")
+                    print(f"   🔐   Issuer: {client_validation['cert_info'].get('issuer', 'N/A')}")
+                    print(f"   🔐   Valid Until: {client_validation['cert_info'].get('not_after', 'N/A')}")
+                else:
+                    print(f"   🔐   Error: {client_validation['error']}")
+                    print(f"   🔐   Preview: {client_validation['preview']}")
+            else:
+                print(f"   🔐 Client Certificate: Not provided")
+            
+            # Validate client key
+            if config.client_key_content:
+                key_validation = validate_tls_certificate(config.client_key_content, "KEY")
+                print(f"   🔐 Client Key Validation:")
+                print(f"   🔐   Valid: {key_validation['valid']}")
+                if not key_validation['valid']:
+                    print(f"   🔐   Error: {key_validation['error']}")
+                    print(f"   🔐   Preview: {key_validation['preview']}")
+            else:
+                print(f"   🔐 Client Key: Not provided")
+            
+            # Test TLS connection if all required components are present
+            if config.ca_cert_content or config.ca_cert_path:
+                print(f"   🔐 Testing TLS connection...")
+                from .utils import test_tls_connection
+                tls_test = test_tls_connection(config)
+                print(f"   🔐 TLS Connection Test:")
+                print(f"   🔐   Success: {tls_test['success']}")
+                if tls_test['success']:
+                    print(f"   🔐   ✅ TLS connection test passed!")
+                    if 'server_cert' in tls_test['debug_info']:
+                        server_cert = tls_test['debug_info']['server_cert']
+                        print(f"   🔐   Server Certificate:")
+                        print(f"   🔐     Subject: {server_cert.get('subject', 'N/A')}")
+                        print(f"   🔐     Issuer: {server_cert.get('issuer', 'N/A')}")
+                        print(f"   🔐     Valid Until: {server_cert.get('not_after', 'N/A')}")
+                else:
+                    print(f"   🔐   ❌ TLS connection test failed: {tls_test['error']}")
+                    print(f"   🔐   Steps:")
+                    for step in tls_test['steps']:
+                        print(f"   🔐     {step}")
+            else:
+                print(f"   🔐 TLS Connection Test: Skipped (no CA certificate provided)")
+        
         config.topic_prefix = request.POST.get('mqtt_topic_prefix', config.topic_prefix)
         config.qos_level = int(request.POST.get('mqtt_qos_level', config.qos_level))
         config.retain_messages = request.POST.get('mqtt_retain_messages') == 'enabled'

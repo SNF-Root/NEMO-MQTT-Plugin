@@ -172,6 +172,250 @@ def get_event_topic_override(event_type: str) -> Optional[str]:
         return None
 
 
+def validate_tls_certificate(cert_content: str, cert_type: str = "CA") -> dict:
+    """
+    Validate TLS certificate content and return detailed information.
+    
+    Args:
+        cert_content: Certificate content in PEM format
+        cert_type: Type of certificate ("CA", "CLIENT", "KEY")
+    
+    Returns:
+        Dictionary with validation results and certificate info
+    """
+    import ssl
+    import tempfile
+    import os
+    from datetime import datetime
+    
+    result = {
+        'valid': False,
+        'error': None,
+        'cert_info': {},
+        'preview': cert_content[:100] + "..." if len(cert_content) > 100 else cert_content
+    }
+    
+    if not cert_content or not cert_content.strip():
+        result['error'] = f"No {cert_type} certificate content provided"
+        return result
+    
+    try:
+        # Check if it looks like a PEM certificate
+        if cert_type == "KEY":
+            if not ("-----BEGIN PRIVATE KEY-----" in cert_content or "-----BEGIN RSA PRIVATE KEY-----" in cert_content):
+                result['error'] = "Certificate content doesn't look like a private key (missing BEGIN PRIVATE KEY)"
+                return result
+        else:
+            if not "-----BEGIN CERTIFICATE-----" in cert_content:
+                result['error'] = "Certificate content doesn't look like a certificate (missing BEGIN CERTIFICATE)"
+                return result
+        
+        # Create temporary file for certificate
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as temp_file:
+            temp_file.write(cert_content)
+            temp_file_path = temp_file.name
+        
+        try:
+            if cert_type == "KEY":
+                # For private keys, we can't easily validate without the certificate
+                result['valid'] = True
+                result['cert_info'] = {
+                    'type': 'private_key',
+                    'size': len(cert_content),
+                    'preview': cert_content[:50] + "..."
+                }
+            else:
+                # Load and validate certificate
+                cert = ssl._ssl._test_decode_cert(temp_file_path)
+                if cert:
+                    result['valid'] = True
+                    result['cert_info'] = {
+                        'subject': dict(x[0] for x in cert.get('subject', [])),
+                        'issuer': dict(x[0] for x in cert.get('issuer', [])),
+                        'version': cert.get('version'),
+                        'serial_number': cert.get('serialNumber'),
+                        'not_before': cert.get('notBefore'),
+                        'not_after': cert.get('notAfter'),
+                        'size': len(cert_content)
+                    }
+                else:
+                    result['error'] = "Failed to parse certificate"
+        finally:
+            # Clean up temp file
+            os.unlink(temp_file_path)
+            
+    except Exception as e:
+        result['error'] = f"Certificate validation failed: {str(e)}"
+    
+    return result
+
+
+def test_tls_connection(config) -> dict:
+    """
+    Test TLS connection to MQTT broker with detailed debugging.
+    
+    Args:
+        config: MQTTConfiguration instance
+    
+    Returns:
+        Dictionary with test results and debugging information
+    """
+    import ssl
+    import socket
+    import tempfile
+    import os
+    
+    result = {
+        'success': False,
+        'error': None,
+        'debug_info': {},
+        'steps': []
+    }
+    
+    if not config.use_tls:
+        result['error'] = "TLS is not enabled in configuration"
+        return result
+    
+    try:
+        # Step 1: Basic connectivity test
+        result['steps'].append("Testing basic connectivity...")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(10)
+        sock.connect((config.broker_host, config.broker_port))
+        sock.close()
+        result['steps'].append("✅ Basic connectivity successful")
+        
+        # Step 2: Create SSL context
+        result['steps'].append("Creating SSL context...")
+        context = ssl.create_default_context()
+        
+        # Step 3: Configure TLS version
+        result['steps'].append(f"Configuring TLS version: {config.tls_version}")
+        
+        # Set minimum and maximum TLS versions
+        if config.tls_version == 'tlsv1':
+            context.minimum_version = ssl.TLSVersion.TLSv1
+            context.maximum_version = ssl.TLSVersion.TLSv1
+        elif config.tls_version == 'tlsv1.1':
+            context.minimum_version = ssl.TLSVersion.TLSv1_1
+            context.maximum_version = ssl.TLSVersion.TLSv1_1
+        elif config.tls_version == 'tlsv1.2':
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            context.maximum_version = ssl.TLSVersion.TLSv1_2
+        elif config.tls_version == 'tlsv1.3':
+            context.minimum_version = ssl.TLSVersion.TLSv1_3
+            context.maximum_version = ssl.TLSVersion.TLSv1_3
+        else:
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            context.maximum_version = ssl.TLSVersion.TLSv1_2
+            result['steps'].append(f"⚠️  Unknown TLS version {config.tls_version}, using default (TLSv1.2)")
+        
+        result['steps'].append(f"✅ TLS version range: {context.minimum_version} to {context.maximum_version}")
+        
+        # Step 4: Load CA certificate
+        ca_loaded = False
+        if config.ca_cert_content:
+            result['steps'].append("Loading CA certificate from content...")
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as ca_file:
+                ca_file.write(config.ca_cert_content)
+                ca_file_path = ca_file.name
+            
+            try:
+                context.load_verify_locations(ca_file_path)
+                ca_loaded = True
+                result['steps'].append("✅ CA certificate loaded successfully")
+            except Exception as e:
+                result['steps'].append(f"❌ Failed to load CA certificate: {e}")
+            finally:
+                os.unlink(ca_file_path)
+        elif config.ca_cert_path:
+            result['steps'].append(f"Loading CA certificate from file: {config.ca_cert_path}")
+            try:
+                context.load_verify_locations(config.ca_cert_path)
+                ca_loaded = True
+                result['steps'].append("✅ CA certificate loaded successfully")
+            except Exception as e:
+                result['steps'].append(f"❌ Failed to load CA certificate: {e}")
+        else:
+            result['steps'].append("ℹ️  No CA certificate provided, using system defaults")
+        
+        # Step 5: Load client certificate
+        client_cert_loaded = False
+        if config.client_cert_content and config.client_key_content:
+            result['steps'].append("Loading client certificate from content...")
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as cert_file:
+                cert_file.write(config.client_cert_content)
+                cert_file_path = cert_file.name
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as key_file:
+                key_file.write(config.client_key_content)
+                key_file_path = key_file.name
+            
+            try:
+                context.load_cert_chain(cert_file_path, key_file_path)
+                client_cert_loaded = True
+                result['steps'].append("✅ Client certificate loaded successfully")
+            except Exception as e:
+                result['steps'].append(f"❌ Failed to load client certificate: {e}")
+            finally:
+                os.unlink(cert_file_path)
+                os.unlink(key_file_path)
+        elif config.client_cert_path and config.client_key_path:
+            result['steps'].append("Loading client certificate from files...")
+            try:
+                context.load_cert_chain(config.client_cert_path, config.client_key_path)
+                client_cert_loaded = True
+                result['steps'].append("✅ Client certificate loaded successfully")
+            except Exception as e:
+                result['steps'].append(f"❌ Failed to load client certificate: {e}")
+        else:
+            result['steps'].append("ℹ️  No client certificate provided")
+        
+        # Step 6: Configure verification
+        if getattr(config, 'insecure', False):
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            result['steps'].append("⚠️  TLS verification disabled (insecure mode)")
+        else:
+            context.check_hostname = True
+            context.verify_mode = ssl.CERT_REQUIRED
+            result['steps'].append("✅ TLS verification enabled")
+        
+        # Step 7: Test SSL connection
+        result['steps'].append("Testing SSL connection...")
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(10)
+        ssl_sock = context.wrap_socket(sock, server_hostname=config.broker_host)
+        
+        try:
+            ssl_sock.connect((config.broker_host, config.broker_port))
+            result['steps'].append("✅ SSL connection successful!")
+            
+            # Get certificate info
+            cert = ssl_sock.getpeercert()
+            if cert:
+                result['debug_info']['server_cert'] = {
+                    'subject': dict(x[0] for x in cert.get('subject', [])),
+                    'issuer': dict(x[0] for x in cert.get('issuer', [])),
+                    'version': cert.get('version'),
+                    'serial_number': cert.get('serialNumber'),
+                    'not_before': cert.get('notBefore'),
+                    'not_after': cert.get('notAfter')
+                }
+                result['steps'].append("✅ Server certificate retrieved")
+            
+            result['success'] = True
+            
+        finally:
+            ssl_sock.close()
+        
+    except Exception as e:
+        result['error'] = str(e)
+        result['steps'].append(f"❌ TLS connection failed: {e}")
+    
+    return result
+
+
 def render_combine_responses(*responses) -> HttpResponse:
     """
     Combine multiple HttpResponse objects into a single response.

@@ -394,6 +394,88 @@ function fetchMessages() {
     });
 }
 
+// Reconnect monitor function
+function reconnectMonitor() {
+    debugLog('reconnectMonitor() called');
+    const url = '/mqtt/monitor/control/';
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: 'action=reconnect'
+    })
+    .then(response => {
+        debugLog(`Reconnect response status: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        debugLog(`Reconnect response: ${JSON.stringify(data)}`);
+        if (data.status === 'reconnected') {
+            debugLog('Monitor reconnected successfully');
+            // Refresh messages after reconnection
+            setTimeout(() => {
+                fetchMessages();
+            }, 2000);
+        }
+    })
+    .catch(error => {
+        debugLog(`Error reconnecting monitor: ${error.message}`);
+        console.error('Error reconnecting monitor:', error);
+    });
+}
+
+// Clear configuration cache function
+function clearConfigCache() {
+    debugLog('clearConfigCache() called');
+    const url = '/mqtt/monitor/control/';
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: 'action=clear_cache'
+    })
+    .then(response => {
+        debugLog(`Clear cache response status: ${response.status}`);
+        return response.json();
+    })
+    .then(data => {
+        debugLog(`Clear cache response: ${JSON.stringify(data)}`);
+        if (data.status === 'cache_cleared') {
+            debugLog('Configuration cache cleared successfully');
+            // Refresh the page to show updated configuration
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
+        }
+    })
+    .catch(error => {
+        debugLog(`Error clearing cache: ${error.message}`);
+        console.error('Error clearing cache:', error);
+    });
+}
+
+// Helper function to get CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded event fired');
     messagesList = document.getElementById('messages-list');
@@ -568,6 +650,8 @@ console.log('=== Main JavaScript loaded ===');
         <h1>{{ title }}</h1>
         <div class="monitor-controls">
             <button class="btn btn-primary" onclick="fetchMessages()">Refresh Now</button>
+            <button class="btn btn-warning" onclick="reconnectMonitor()">Reconnect</button>
+            <button class="btn btn-danger" onclick="clearConfigCache()">Clear Cache</button>
             <div class="connection-status">
                 <div class="connection-item">
                     <span class="status-indicator" id="mqtt-status"></span>
@@ -575,6 +659,45 @@ console.log('=== Main JavaScript loaded ===');
             </div>
         </div>
     </div>
+    
+    <!-- MQTT Configuration Display -->
+    {% if mqtt_config %}
+    <div class="alert alert-info mb-3">
+        <h5><i class="fas fa-cog"></i> MQTT Configuration</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Broker:</strong> {{ mqtt_config.broker_host }}:{{ mqtt_config.broker_port }}<br>
+                <strong>Client ID:</strong> {{ mqtt_config.client_id }}<br>
+                <strong>Configuration:</strong> {{ mqtt_config.name }}
+            </div>
+            <div class="col-md-6">
+                <strong>TLS:</strong> 
+                {% if mqtt_config.use_tls %}
+                    <span class="badge badge-success">Enabled ({{ mqtt_config.tls_version }})</span>
+                {% else %}
+                    <span class="badge badge-warning">Disabled</span>
+                {% endif %}<br>
+                <strong>Authentication:</strong> 
+                {% if mqtt_config.username %}
+                    <span class="badge badge-info">Username/Password</span>
+                {% else %}
+                    <span class="badge badge-secondary">None</span>
+                {% endif %}<br>
+                <strong>Status:</strong> 
+                {% if mqtt_config.enabled %}
+                    <span class="badge badge-success">Active</span>
+                {% else %}
+                    <span class="badge badge-danger">Disabled</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-warning mb-3">
+        <h5><i class="fas fa-exclamation-triangle"></i> No MQTT Configuration Found</h5>
+        <p>Please configure MQTT settings in the NEMO admin interface.</p>
+    </div>
+    {% endif %}
     
     <div class="messages-container">
         <div class="messages-header">
@@ -586,7 +709,7 @@ console.log('=== Main JavaScript loaded ===');
         <div id="debug-info" style="background: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <div>Debug Info:</div>
-                <div style="color: #007bff; font-weight: bold;">Version: 51.0(remove debug)- {{ "now"|date:"Y-m-d H:i:s" }} - {{ request.META.HTTP_HOST }}{{ request.META.SERVER_PORT }}</div>
+                <div style="color: #007bff; font-weight: bold;">Version: 61.0(cache-fix)- {{ "now"|date:"Y-m-d H:i:s" }} - {{ request.META.HTTP_HOST }}{{ request.META.SERVER_PORT }}</div>
                 <div style="color: #28a745; font-size: 11px;">JS Time: <span id="js-timestamp"></span></div>
             </div>
             <div id="debug-log"></div>

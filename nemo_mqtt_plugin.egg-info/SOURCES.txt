@@ -1,4 +1,3 @@
-CHANGELOG.md
 LICENSE
 MANIFEST.in
 README.md
@@ -26,6 +25,9 @@ NEMO_mqtt/management/commands/setup_nemo_integration.py
 NEMO_mqtt/management/commands/test_mqtt_api.py
 NEMO_mqtt/migrations/0001_initial.py
 NEMO_mqtt/migrations/0002_mqttconfiguration_ca_cert_content_and_more.py
+NEMO_mqtt/migrations/0003_add_server_certificates.py
+NEMO_mqtt/migrations/0004_remove_server_cert_content.py
+NEMO_mqtt/migrations/0005_simplify_tls_config.py
 NEMO_mqtt/migrations/__init__.py
 NEMO_mqtt/monitoring/__init__.py
 NEMO_mqtt/monitoring/mqtt_monitor.py

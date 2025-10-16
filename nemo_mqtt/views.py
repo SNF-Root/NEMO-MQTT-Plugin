@@ -48,22 +48,76 @@ class MQTTWebMonitor:
             return False
     
     def connect_mqtt(self):
-        """Connect to MQTT broker"""
+        """Connect to MQTT broker using same config as bridge service"""
         try:
-            # Use the newer callback API to avoid deprecation warning
-            self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
+            # Import the MQTT configuration utility
+            from .utils import get_mqtt_config
+            
+            # Get the same MQTT configuration as the bridge service
+            config = get_mqtt_config()
+            if not config or not config.enabled:
+                print(f"❌ No enabled MQTT configuration found")
+                return False
+            
+            print(f"🔍 Using MQTT config: {config.name}")
+            print(f"   Broker: {config.broker_host}:{config.broker_port}")
+            print(f"   TLS: {config.use_tls}")
+            print(f"   Config ID: {config.id}")
+            print(f"   Updated: {config.updated_at}")
+            
+            # Create MQTT client with compatibility check
+            try:
+                # Try newer API first
+                self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1)
+            except AttributeError:
+                # Fall back to older API
+                self.mqtt_client = mqtt.Client()
+            
             self.mqtt_client.on_connect = self.on_mqtt_connect
             self.mqtt_client.on_message = self.on_mqtt_message
             
-            # Get MQTT settings from Django settings or use defaults
-            mqtt_host = getattr(settings, 'MQTT_BROKER_HOST', 'localhost')
-            mqtt_port = getattr(settings, 'MQTT_BROKER_PORT', 1883)
+            # Configure TLS if enabled
+            if config.use_tls:
+                import ssl
+                context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+                
+                if config.ca_cert_content:
+                    # Write CA cert to temp file
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as f:
+                        f.write(config.ca_cert_content)
+                        ca_cert_path = f.name
+                    
+                    try:
+                        context.load_verify_locations(ca_cert_path)
+                        print(f"✅ CA Certificate loaded for TLS verification")
+                    finally:
+                        # Clean up temp file
+                        import os
+                        os.unlink(ca_cert_path)
+                
+                # Set TLS version
+                if config.tls_version == 'tlsv1.2':
+                    context.minimum_version = ssl.TLSVersion.TLSv1_2
+                elif config.tls_version == 'tlsv1.3':
+                    context.minimum_version = ssl.TLSVersion.TLSv1_3
+                
+                # Disable insecure protocols
+                context.options |= ssl.OP_NO_SSLv2
+                context.options |= ssl.OP_NO_SSLv3
+                
+                self.mqtt_client.tls_set_context(context)
+                print(f"🔐 TLS configured: {config.tls_version}")
             
-            self.mqtt_client.connect(mqtt_host, mqtt_port, 60)
+            # Connect to broker
+            self.mqtt_client.connect(config.broker_host, config.broker_port, 60)
             self.mqtt_client.loop_start()
             return True
+            
         except Exception as e:
-            print(f"MQTT connection failed: {e}")
+            print(f"❌ MQTT connection failed: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def on_mqtt_connect(self, client, userdata, flags, rc):
@@ -121,24 +175,79 @@ class MQTTWebMonitor:
         if self.mqtt_client:
             self.mqtt_client.disconnect()
     
+    def force_reconnect(self):
+        """Force reconnection with fresh configuration"""
+        print(f"🔄 Forcing MQTT monitor reconnection...")
+        if self.mqtt_client:
+            self.mqtt_client.disconnect()
+        self.mqtt_client = None
+        # The monitor loop will automatically reconnect
+    
+    def clear_config_cache(self):
+        """Clear MQTT configuration cache to force fresh load"""
+        from django.core.cache import cache
+        cache.delete('mqtt_active_config')
+        print(f"🧹 MQTT configuration cache cleared")
+    
     def _monitor_loop(self):
-        """Main monitoring loop"""
+        """Main monitoring loop with configuration refresh"""
         print(f"🔍 MQTT Monitor loop starting...")
         
-        # Connect to MQTT
-        if not self.connect_mqtt():
-            print(f"❌ MQTT Monitor failed to connect to broker")
-            return
+        last_config_hash = None
+        reconnect_interval = 30  # Check for config changes every 30 seconds
+        last_check = 0
         
-        print(f"🔄 MQTT Monitor loop running...")
-        # Monitor loop - just keep the thread alive
-        # MQTT messages are handled by the on_mqtt_message callback
         while self.running:
             try:
-                time.sleep(1)  # Just keep the thread alive
+                current_time = time.time()
+                
+                # Check for configuration changes periodically
+                if current_time - last_check > reconnect_interval:
+                    try:
+                        # Clear cache to ensure we get the latest configuration
+                        from django.core.cache import cache
+                        cache.delete('mqtt_active_config')
+                        
+                        from .utils import get_mqtt_config
+                        current_config = get_mqtt_config()
+                        
+                        if current_config:
+                            # Create a simple hash of the configuration
+                            config_hash = hash(f"{current_config.broker_host}:{current_config.broker_port}:{current_config.use_tls}:{current_config.name}")
+                            
+                            # If configuration changed, reconnect
+                            if last_config_hash is not None and config_hash != last_config_hash:
+                                print(f"🔄 Configuration changed, reconnecting MQTT monitor...")
+                                print(f"   New config: {current_config.broker_host}:{current_config.broker_port}")
+                                if self.mqtt_client:
+                                    self.mqtt_client.disconnect()
+                                self.mqtt_client = None
+                                
+                                # Wait a moment before reconnecting
+                                time.sleep(2)
+                            
+                            last_config_hash = config_hash
+                            
+                    except Exception as e:
+                        print(f"⚠️ Error checking configuration: {e}")
+                    
+                    last_check = current_time
+                
+                # Connect to MQTT if not connected
+                if not self.mqtt_client or not self.mqtt_client.is_connected():
+                    if not self.connect_mqtt():
+                        print(f"❌ MQTT Monitor failed to connect to broker, retrying in 10s...")
+                        time.sleep(10)
+                        continue
+                    else:
+                        print(f"✅ MQTT Monitor connected successfully")
+                
+                # Small delay to prevent excessive CPU usage
+                time.sleep(1)
+                
             except Exception as e:
                 print(f"Error in monitor loop: {e}")
-                time.sleep(1)
+                time.sleep(5)
 
 
 # Global monitor instance
@@ -230,8 +339,17 @@ def mqtt_monitor(request):
     
     print(f"🚀 [VIEW-{view_id}] About to render template...")
     
+    # Get MQTT configuration for display
+    mqtt_config = None
+    try:
+        from .utils import get_mqtt_config
+        mqtt_config = get_mqtt_config()
+    except Exception as e:
+        print(f"⚠️ Could not get MQTT config: {e}")
+    
     response = render(request, 'NEMO_mqtt/monitor.html', {
         'title': 'MQTT Messages',
+        'mqtt_config': mqtt_config,
     })
     
     # Add cache-busting headers to prevent browser caching
@@ -288,7 +406,7 @@ def mqtt_monitor_api(request):
 @require_http_methods(["POST"])
 @csrf_exempt
 def mqtt_monitor_control(request):
-    """Control monitoring (start/stop)"""
+    """Control monitoring (start/stop/reconnect)"""
     action = request.POST.get('action')
     print(f"Monitor control action: {action}, current status: {monitor.running}")
     
@@ -301,6 +419,19 @@ def mqtt_monitor_control(request):
         print("Stopping monitor...")
         monitor.stop_monitoring()
         return JsonResponse({'status': 'stopped'})
+    elif action == 'reconnect':
+        print("Reconnecting monitor...")
+        if monitor.running:
+            monitor.force_reconnect()
+        else:
+            monitor.start_monitoring()
+        return JsonResponse({'status': 'reconnected'})
+    elif action == 'clear_cache':
+        print("Clearing configuration cache...")
+        monitor.clear_config_cache()
+        if monitor.running:
+            monitor.force_reconnect()
+        return JsonResponse({'status': 'cache_cleared'})
     else:
         return JsonResponse({'error': 'Invalid action'}, status=400)
 

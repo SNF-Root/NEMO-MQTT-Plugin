@@ -18,6 +18,8 @@ import threading
 import subprocess
 import fcntl
 import tempfile
+import ssl
+import ipaddress
 from typing import Optional, Dict, Any
 
 # Django setup - only when running standalone
@@ -376,13 +378,27 @@ class RedisMQTTBridge:
             logger.info("   ⚠️  Using auto-started Mosquitto for development")
             logger.info("   ⚠️  For production, use external MQTT broker configured in NEMO admin")
             
-            # Start Mosquitto broker on configured port
-            print(f"🚀 Starting Mosquitto on port {broker_port}...")
-            self.mosquitto_process = subprocess.Popen(
-                ['mosquitto', '-p', str(broker_port)],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
-            )
+            # Check if TLS is enabled and create configuration
+            if self.config and self.config.use_tls:
+                print(f"🔐 TLS enabled - creating Mosquitto TLS configuration...")
+                mosquitto_config = self._create_mosquitto_tls_config()
+                print(f"🔐 Mosquitto config file: {mosquitto_config}")
+                
+                # Start Mosquitto with TLS configuration
+                print(f"🚀 Starting Mosquitto with TLS on port {broker_port}...")
+                self.mosquitto_process = subprocess.Popen(
+                    ['mosquitto', '-c', mosquitto_config],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
+            else:
+                # Start Mosquitto broker on configured port without TLS
+                print(f"🚀 Starting Mosquitto on port {broker_port}...")
+                self.mosquitto_process = subprocess.Popen(
+                    ['mosquitto', '-p', str(broker_port)],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE
+                )
             
             # Wait for Mosquitto to ACTUALLY be ready (more robust check)
             print(f"⏳ Waiting for Mosquitto to be fully ready...")
@@ -417,6 +433,346 @@ class RedisMQTTBridge:
             logger.error(f"❌ Failed to start MQTT broker: {e}")
             print(f"❌ Failed to start MQTT broker: {e}")
             raise
+    
+    def _create_mosquitto_tls_config(self):
+        """
+        Create a Mosquitto configuration file with TLS support.
+        
+        Returns:
+            Path to the created configuration file
+        """
+        try:
+            # Create a temporary configuration file
+            config_file = tempfile.NamedTemporaryFile(mode='w', suffix='.conf', delete=False)
+            
+            # Write basic Mosquitto configuration
+            config_file.write("# Mosquitto TLS Configuration for NEMO MQTT Plugin\n")
+            config_file.write("# This is a temporary configuration for development/testing\n\n")
+            
+            # Port configuration
+            broker_port = self.config.broker_port if self.config else 8883
+            config_file.write(f"port {broker_port}\n")
+            config_file.write(f"listener {broker_port}\n")
+            config_file.write(f"protocol mqtt\n")
+            
+            # For development broker, always generate self-signed certificates
+            # The client will use your CA certificate for verification
+            print("   🔐 Generating self-signed certificates for development broker...")
+            if self.config.ca_cert_content:
+                print("   ℹ️  Your CA certificate will be used for client verification")
+            else:
+                print("   ℹ️  No CA certificate provided - using generated CA for both broker and client")
+            
+            cert_files = self._generate_self_signed_certificates()
+            config_file.write(f"cafile {cert_files['ca_cert']}\n")
+            config_file.write(f"certfile {cert_files['server_cert']}\n")
+            config_file.write(f"keyfile {cert_files['server_key']}\n")
+            
+            # Allow anonymous connections for development
+            config_file.write(f"allow_anonymous true\n")
+            
+            # Logging
+            config_file.write(f"log_dest stdout\n")
+            config_file.write(f"log_type all\n")
+            
+            # Close the file
+            config_file.close()
+            
+            print(f"🔐 Created Mosquitto TLS config: {config_file.name}")
+            print(f"🔐   Port: {broker_port}")
+            print(f"🔐   CA File: {cert_files['ca_cert']}")
+            print(f"🔐   Cert File: {cert_files['server_cert']}")
+            print(f"🔐   Key File: {cert_files['server_key']}")
+            print(f"🔐   Anonymous: true (development mode)")
+            
+            return config_file.name
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to create Mosquitto TLS config: {e}")
+            print(f"❌ Failed to create Mosquitto TLS config: {e}")
+            raise
+    
+    def _generate_self_signed_certificates(self):
+        """
+        Generate self-signed certificates for development TLS.
+        
+        Returns:
+            Dictionary with paths to generated certificate files
+        """
+        try:
+            from cryptography import x509
+            from cryptography.x509.oid import NameOID
+            from cryptography.hazmat.primitives import hashes, serialization
+            from cryptography.hazmat.primitives.asymmetric import rsa
+            from datetime import datetime, timedelta
+            
+            print("🔐 Generating self-signed certificates for development...")
+            
+            # Create temporary directory for certificates
+            cert_dir = tempfile.mkdtemp(prefix='nemo_mqtt_certs_')
+            
+            # Generate private key
+            private_key = rsa.generate_private_key(
+                public_exponent=65537,
+                key_size=2048,
+            )
+            
+            # Create CA certificate
+            ca_subject = x509.Name([
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Development"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "NEMO"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NEMO MQTT Plugin"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "NEMO MQTT CA"),
+            ])
+            
+            ca_cert = x509.CertificateBuilder().subject_name(
+                ca_subject
+            ).issuer_name(
+                ca_subject
+            ).public_key(
+                private_key.public_key()
+            ).serial_number(
+                x509.random_serial_number()
+            ).not_valid_before(
+                datetime.utcnow()
+            ).not_valid_after(
+                datetime.utcnow() + timedelta(days=365)
+            ).add_extension(
+                x509.BasicConstraints(ca=True, path_length=None),
+                critical=True,
+            ).sign(private_key, hashes.SHA256())
+            
+            # Create server certificate
+            server_subject = x509.Name([
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Development"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "NEMO"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "NEMO MQTT Plugin"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+            ])
+            
+            server_cert = x509.CertificateBuilder().subject_name(
+                server_subject
+            ).issuer_name(
+                ca_subject
+            ).public_key(
+                private_key.public_key()
+            ).serial_number(
+                x509.random_serial_number()
+            ).not_valid_before(
+                datetime.utcnow()
+            ).not_valid_after(
+                datetime.utcnow() + timedelta(days=365)
+            ).add_extension(
+                x509.SubjectAlternativeName([
+                    x509.DNSName("localhost"),
+                    x509.IPAddress(ipaddress.IPv4Address("127.0.0.1")),
+                ]),
+                critical=False,
+            ).sign(private_key, hashes.SHA256())
+            
+            # Write certificates to files
+            ca_cert_path = os.path.join(cert_dir, 'ca.crt')
+            server_cert_path = os.path.join(cert_dir, 'server.crt')
+            server_key_path = os.path.join(cert_dir, 'server.key')
+            
+            with open(ca_cert_path, 'wb') as f:
+                f.write(ca_cert.public_bytes(serialization.Encoding.PEM))
+            
+            with open(server_cert_path, 'wb') as f:
+                f.write(server_cert.public_bytes(serialization.Encoding.PEM))
+            
+            with open(server_key_path, 'wb') as f:
+                f.write(private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.PKCS8,
+                    encryption_algorithm=serialization.NoEncryption()
+                ))
+            
+            print(f"🔐 Generated certificates in: {cert_dir}")
+            print(f"🔐   CA Certificate: {ca_cert_path}")
+            print(f"🔐   Server Certificate: {server_cert_path}")
+            print(f"🔐   Server Key: {server_key_path}")
+            
+            return {
+                'ca_cert': ca_cert_path,
+                'server_cert': server_cert_path,
+                'server_key': server_key_path,
+                'cert_dir': cert_dir
+            }
+            
+        except ImportError:
+            print("⚠️  cryptography library not available, using simple certificate generation...")
+            return self._generate_simple_certificates()
+        except Exception as e:
+            print(f"⚠️  Failed to generate certificates with cryptography: {e}")
+            return self._generate_simple_certificates()
+    
+    def _generate_simple_certificates(self):
+        """
+        Generate simple self-signed certificates using OpenSSL command line.
+        
+        Returns:
+            Dictionary with paths to generated certificate files
+        """
+        try:
+            import subprocess
+            
+            print("🔐 Generating simple self-signed certificates using OpenSSL...")
+            
+            # Create temporary directory for certificates
+            cert_dir = tempfile.mkdtemp(prefix='nemo_mqtt_certs_')
+            
+            ca_cert_path = os.path.join(cert_dir, 'ca.crt')
+            server_cert_path = os.path.join(cert_dir, 'server.crt')
+            server_key_path = os.path.join(cert_dir, 'server.key')
+            
+            # Generate CA private key
+            subprocess.run([
+                'openssl', 'genrsa', '-out', os.path.join(cert_dir, 'ca.key'), '2048'
+            ], check=True, capture_output=True)
+            
+            # Generate CA certificate
+            subprocess.run([
+                'openssl', 'req', '-new', '-x509', '-days', '365',
+                '-key', os.path.join(cert_dir, 'ca.key'),
+                '-out', ca_cert_path,
+                '-subj', '/C=US/ST=Development/L=NEMO/O=NEMO MQTT Plugin/CN=NEMO MQTT CA'
+            ], check=True, capture_output=True)
+            
+            # Generate server private key
+            subprocess.run([
+                'openssl', 'genrsa', '-out', server_key_path, '2048'
+            ], check=True, capture_output=True)
+            
+            # Generate server certificate request
+            subprocess.run([
+                'openssl', 'req', '-new', '-key', server_key_path,
+                '-out', os.path.join(cert_dir, 'server.csr'),
+                '-subj', '/C=US/ST=Development/L=NEMO/O=NEMO MQTT Plugin/CN=localhost'
+            ], check=True, capture_output=True)
+            
+            # Generate server certificate
+            subprocess.run([
+                'openssl', 'x509', '-req', '-days', '365',
+                '-in', os.path.join(cert_dir, 'server.csr'),
+                '-CA', ca_cert_path,
+                '-CAkey', os.path.join(cert_dir, 'ca.key'),
+                '-CAcreateserial',
+                '-out', server_cert_path
+            ], check=True, capture_output=True)
+            
+            print(f"🔐 Generated certificates in: {cert_dir}")
+            print(f"🔐   CA Certificate: {ca_cert_path}")
+            print(f"🔐   Server Certificate: {server_cert_path}")
+            print(f"🔐   Server Key: {server_key_path}")
+            
+            return {
+                'ca_cert': ca_cert_path,
+                'server_cert': server_cert_path,
+                'server_key': server_key_path,
+                'cert_dir': cert_dir
+            }
+            
+        except Exception as e:
+            print(f"❌ Failed to generate certificates: {e}")
+            # Fallback: create a simple configuration without TLS
+            print("⚠️  Falling back to non-TLS configuration...")
+            return None
+    
+    def _get_generated_ca_certificate(self):
+        """
+        Get the generated CA certificate content for the client to use.
+        
+        Returns:
+            CA certificate content as string
+        """
+        try:
+            # Find the most recent certificate directory
+            import glob
+            cert_dirs = glob.glob('/tmp/nemo_mqtt_certs_*')
+            if not cert_dirs:
+                return None
+            
+            # Get the most recent one
+            latest_cert_dir = max(cert_dirs, key=os.path.getctime)
+            ca_cert_path = os.path.join(latest_cert_dir, 'ca.crt')
+            
+            if os.path.exists(ca_cert_path):
+                with open(ca_cert_path, 'r') as f:
+                    return f.read()
+            
+            return None
+        except Exception as e:
+            print(f"⚠️  Could not get generated CA certificate: {e}")
+            return None
+    
+    def _generate_server_certificate_with_ca(self, ca_cert_path):
+        """
+        Generate a server certificate using the provided CA certificate.
+        
+        Args:
+            ca_cert_path: Path to the CA certificate file
+            
+        Returns:
+            Dictionary with paths to generated certificate files
+        """
+        try:
+            import subprocess
+            
+            print("🔐 Generating server certificate using provided CA...")
+            
+            # Create temporary directory for certificates
+            cert_dir = tempfile.mkdtemp(prefix='nemo_mqtt_server_certs_')
+            
+            server_cert_path = os.path.join(cert_dir, 'server.crt')
+            server_key_path = os.path.join(cert_dir, 'server.key')
+            
+            # Generate server private key
+            print("🔑 Generating server private key...")
+            subprocess.run([
+                'openssl', 'genrsa', '-out', server_key_path, '2048'
+            ], check=True, capture_output=True)
+            
+            # Generate server certificate request
+            print("📝 Generating server certificate request...")
+            subprocess.run([
+                'openssl', 'req', '-new', '-key', server_key_path,
+                '-out', os.path.join(cert_dir, 'server.csr'),
+                '-subj', '/C=US/ST=Development/L=NEMO/O=NEMO MQTT Plugin/CN=localhost'
+            ], check=True, capture_output=True)
+            
+            # Generate server certificate using the provided CA
+            print("📜 Generating server certificate with provided CA...")
+            subprocess.run([
+                'openssl', 'x509', '-req', '-days', '365',
+                '-in', os.path.join(cert_dir, 'server.csr'),
+                '-CA', ca_cert_path,
+                '-CAkey', ca_cert_path.replace('.pem', '.key'),  # Assume CA key has same name
+                '-CAcreateserial',
+                '-out', server_cert_path
+            ], check=True, capture_output=True)
+            
+            print(f"🔐 Generated server certificate: {server_cert_path}")
+            print(f"🔐 Generated server key: {server_key_path}")
+            
+            return {
+                'server_cert': server_cert_path,
+                'server_key': server_key_path,
+                'cert_dir': cert_dir
+            }
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to generate server certificate: {e}")
+            print(f"   stdout: {e.stdout}")
+            print(f"   stderr: {e.stderr}")
+            # Fallback to self-signed
+            return self._generate_self_signed_certificates()
+        except Exception as e:
+            print(f"❌ Failed to generate server certificate: {e}")
+            # Fallback to self-signed
+            return self._generate_self_signed_certificates()
     
     def _initialize_redis_robust(self):
         """Initialize Redis with ConnectionManager for robust retry"""
@@ -473,15 +829,166 @@ class RedisMQTTBridge:
             
             # Set TLS if configured
             if self.config.use_tls:
-                print("   TLS: Enabled")
-                import ssl
-                context = ssl.create_default_context()
-                if not getattr(self.config, 'verify_tls', True):
-                    context.check_hostname = False
-                    context.verify_mode = ssl.CERT_NONE
-                client.tls_set_context(context)
+                print("   🔐 TLS: Enabled")
+                print(f"   🔐 TLS Version: {self.config.tls_version}")
+                print(f"   🔐 Insecure Mode: {getattr(self.config, 'insecure', False)}")
+                
+                
+                try:
+                    # Create SSL context with proper configuration
+                    context = ssl.create_default_context()
+                    
+                    # Set TLS version using the correct method
+                    print(f"   🔐 Configuring TLS version: {self.config.tls_version}")
+                    
+                    # Set minimum and maximum TLS versions
+                    if self.config.tls_version == 'tlsv1':
+                        context.minimum_version = ssl.TLSVersion.TLSv1
+                        context.maximum_version = ssl.TLSVersion.TLSv1
+                    elif self.config.tls_version == 'tlsv1.1':
+                        context.minimum_version = ssl.TLSVersion.TLSv1_1
+                        context.maximum_version = ssl.TLSVersion.TLSv1_1
+                    elif self.config.tls_version == 'tlsv1.2':
+                        context.minimum_version = ssl.TLSVersion.TLSv1_2
+                        context.maximum_version = ssl.TLSVersion.TLSv1_2
+                    elif self.config.tls_version == 'tlsv1.3':
+                        context.minimum_version = ssl.TLSVersion.TLSv1_3
+                        context.maximum_version = ssl.TLSVersion.TLSv1_3
+                    else:
+                        print(f"   ⚠️  Unknown TLS version {self.config.tls_version}, using default (TLSv1.2)")
+                        context.minimum_version = ssl.TLSVersion.TLSv1_2
+                        context.maximum_version = ssl.TLSVersion.TLSv1_2
+                    
+                    print(f"   🔐 TLS version range: {context.minimum_version} to {context.maximum_version}")
+                    
+                    # Handle CA certificate
+                    ca_cert_loaded = False
+                    
+                    # Always use CA certificate from NEMO configuration (both AUTO and EXTERNAL modes)
+                    if self.config.ca_cert_content:
+                        print("   🔐 CA Certificate: Found in content field")
+                        try:
+                            # Create temporary file for CA certificate
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as ca_file:
+                                ca_file.write(self.config.ca_cert_content)
+                                ca_file_path = ca_file.name
+                            
+                            print(f"   🔐 CA Certificate: Written to temp file: {ca_file_path}")
+                            context.load_verify_locations(ca_file_path)
+                            ca_cert_loaded = True
+                            print("   ✅ CA Certificate: Successfully loaded into SSL context")
+                            
+                            # Clean up temp file
+                            os.unlink(ca_file_path)
+                            print("   🧹 CA Certificate: Temp file cleaned up")
+                            
+                        except Exception as e:
+                            print(f"   ❌ CA Certificate: Failed to load from content: {e}")
+                            print(f"   🔍 CA Certificate Content Preview: {self.config.ca_cert_content[:100]}...")
+                    elif self.config.ca_cert_path:
+                        print(f"   🔐 CA Certificate: Found in path field: {self.config.ca_cert_path}")
+                        try:
+                            if os.path.exists(self.config.ca_cert_path):
+                                context.load_verify_locations(self.config.ca_cert_path)
+                                ca_cert_loaded = True
+                                print("   ✅ CA Certificate: Successfully loaded from file")
+                            else:
+                                print(f"   ❌ CA Certificate: File not found: {self.config.ca_cert_path}")
+                        except Exception as e:
+                            print(f"   ❌ CA Certificate: Failed to load from file: {e}")
+                    else:
+                        print("   🔐 CA Certificate: Not provided, using system default")
+                    
+                    # Handle client certificate and key
+                    client_cert_loaded = False
+                    if self.config.client_cert_content and self.config.client_key_content:
+                        print("   🔐 Client Certificate: Found in content fields")
+                        try:
+                            # Create temporary files for client certificate and key
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as cert_file:
+                                cert_file.write(self.config.client_cert_content)
+                                cert_file_path = cert_file.name
+                            
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False) as key_file:
+                                key_file.write(self.config.client_key_content)
+                                key_file_path = key_file.name
+                            
+                            print(f"   🔐 Client Certificate: Written to temp files")
+                            print(f"   🔐   Cert: {cert_file_path}")
+                            print(f"   🔐   Key: {key_file_path}")
+                            
+                            context.load_cert_chain(cert_file_path, key_file_path)
+                            client_cert_loaded = True
+                            print("   ✅ Client Certificate: Successfully loaded into SSL context")
+                            
+                            # Clean up temp files
+                            os.unlink(cert_file_path)
+                            os.unlink(key_file_path)
+                            print("   🧹 Client Certificate: Temp files cleaned up")
+                            
+                        except Exception as e:
+                            print(f"   ❌ Client Certificate: Failed to load from content: {e}")
+                            print(f"   🔍 Client Cert Content Preview: {self.config.client_cert_content[:100]}...")
+                            print(f"   🔍 Client Key Content Preview: {self.config.client_key_content[:100]}...")
+                    elif self.config.client_cert_path and self.config.client_key_path:
+                        print(f"   🔐 Client Certificate: Found in path fields")
+                        print(f"   🔐   Cert: {self.config.client_cert_path}")
+                        print(f"   🔐   Key: {self.config.client_key_path}")
+                        try:
+                            if os.path.exists(self.config.client_cert_path) and os.path.exists(self.config.client_key_path):
+                                context.load_cert_chain(self.config.client_cert_path, self.config.client_key_path)
+                                client_cert_loaded = True
+                                print("   ✅ Client Certificate: Successfully loaded from files")
+                            else:
+                                missing_files = []
+                                if not os.path.exists(self.config.client_cert_path):
+                                    missing_files.append(f"cert: {self.config.client_cert_path}")
+                                if not os.path.exists(self.config.client_key_path):
+                                    missing_files.append(f"key: {self.config.client_key_path}")
+                                print(f"   ❌ Client Certificate: Files not found: {', '.join(missing_files)}")
+                        except Exception as e:
+                            print(f"   ❌ Client Certificate: Failed to load from files: {e}")
+                    else:
+                        print("   🔐 Client Certificate: Not provided")
+                    
+                    # Configure verification settings
+                    if getattr(self.config, 'insecure', False):
+                        print("   ⚠️  TLS Verification: DISABLED (insecure mode)")
+                        context.check_hostname = False
+                        context.verify_mode = ssl.CERT_NONE
+                    else:
+                        print("   🔐 TLS Verification: ENABLED")
+                        context.check_hostname = True
+                        context.verify_mode = ssl.CERT_REQUIRED
+                        
+                        if not ca_cert_loaded:
+                            print("   ⚠️  TLS Verification: No CA certificate loaded, using system defaults")
+                    
+                    # Set additional SSL context options
+                    context.options |= ssl.OP_NO_SSLv2
+                    context.options |= ssl.OP_NO_SSLv3
+                    print("   🔐 SSL Options: Disabled SSLv2 and SSLv3")
+                    
+                    # Log final SSL context configuration
+                    print(f"   🔐 Final SSL Context Configuration:")
+                    print(f"   🔐   Protocol: {context.protocol}")
+                    print(f"   🔐   Check Hostname: {context.check_hostname}")
+                    print(f"   🔐   Verify Mode: {context.verify_mode}")
+                    print(f"   🔐   CA Cert Loaded: {ca_cert_loaded}")
+                    print(f"   🔐   Client Cert Loaded: {client_cert_loaded}")
+                    
+                    # Apply SSL context to MQTT client
+                    client.tls_set_context(context)
+                    print("   ✅ SSL Context: Successfully applied to MQTT client")
+                    
+                except Exception as e:
+                    print(f"   ❌ TLS Configuration: Failed to configure TLS: {e}")
+                    print(f"   🔍 Error Type: {type(e).__name__}")
+                    import traceback
+                    print(f"   🔍 Traceback: {traceback.format_exc()}")
+                    raise Exception(f"TLS configuration failed: {e}")
             else:
-                print("   TLS: Disabled")
+                print("   🔐 TLS: Disabled")
             
             # Connect to broker
             self.broker_host = self.config.broker_host or 'localhost'
@@ -491,27 +998,93 @@ class RedisMQTTBridge:
             print(f"🔌 Attempting MQTT connection...")
             print(f"   Broker: {self.broker_host}:{self.broker_port}")
             print(f"   Keepalive: {keepalive}s")
+            print(f"   Client ID: {client_id}")
+            print(f"   TLS Enabled: {self.config.use_tls}")
+            if self.config.use_tls:
+                print(f"   TLS Port: {self.broker_port} (should be 8883 for TLS)")
+                print(f"   TLS Version: {self.config.tls_version}")
             
-            client.connect(self.broker_host, self.broker_port, keepalive)
-            client.loop_start()
-            
-            # Wait for connection to be established
-            timeout = 10
-            elapsed = 0
-            while elapsed < timeout:
-                if client.is_connected():
-                    self.connection_count += 1
-                    self.last_connect_time = time.time()
-                    print(f"✅ MQTT CONNECTION ESTABLISHED!")
-                    print(f"   Broker: {self.broker_host}:{self.broker_port}")
-                    print(f"   Connection #: {self.connection_count}")
-                    print(f"   Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-                    return client
-                time.sleep(0.5)
-                elapsed += 0.5
-            
-            # If not connected, raise exception to trigger retry
-            raise Exception(f"Connection timeout - {self.broker_host}:{self.broker_port} didn't respond after {timeout}s")
+            try:
+                print("   🔌 Calling client.connect()...")
+                client.connect(self.broker_host, self.broker_port, keepalive)
+                print("   ✅ client.connect() completed successfully")
+                
+                print("   🔄 Starting MQTT loop...")
+                client.loop_start()
+                print("   ✅ MQTT loop started")
+                
+                # Wait for connection to be established with detailed status
+                timeout = 15  # Increased timeout for TLS connections
+                elapsed = 0
+                print(f"   ⏳ Waiting for connection (timeout: {timeout}s)...")
+                
+                while elapsed < timeout:
+                    connected = client.is_connected()
+                    print(f"   🔍 Connection check {elapsed:.1f}s: {'✅ Connected' if connected else '⏳ Pending'}")
+                    
+                    if connected:
+                        self.connection_count += 1
+                        self.last_connect_time = time.time()
+                        print(f"✅ MQTT CONNECTION ESTABLISHED!")
+                        print(f"   Broker: {self.broker_host}:{self.broker_port}")
+                        print(f"   Connection #: {self.connection_count}")
+                        print(f"   Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                        print(f"   TLS: {'Enabled' if self.config.use_tls else 'Disabled'}")
+                        if self.config.use_tls:
+                            print(f"   TLS Version: {self.config.tls_version}")
+                        return client
+                    
+                    time.sleep(0.5)
+                    elapsed += 0.5
+                
+                # If not connected, get more details about the failure
+                print(f"   ❌ Connection timeout after {timeout}s")
+                print(f"   🔍 Final connection status: {client.is_connected()}")
+                
+                # Try to get more information about the connection state
+                try:
+                    # Check if there are any pending connection errors
+                    print("   🔍 Checking for connection errors...")
+                    # Note: paho-mqtt doesn't expose detailed error info easily
+                    print("   🔍 Connection may have failed due to:")
+                    print("   🔍   - Network connectivity issues")
+                    print("   🔍   - TLS/SSL handshake failure")
+                    print("   🔍   - Authentication failure")
+                    print("   🔍   - Broker not accepting connections")
+                    if self.config.use_tls:
+                        print("   🔍   - TLS certificate validation failure")
+                        print("   🔍   - Wrong TLS port (should be 8883)")
+                        print("   🔍   - CA certificate not trusted by broker")
+                except Exception as e:
+                    print(f"   🔍 Error getting connection details: {e}")
+                
+                raise Exception(f"Connection timeout - {self.broker_host}:{self.broker_port} didn't respond after {timeout}s")
+                
+            except Exception as e:
+                print(f"   ❌ MQTT connection failed: {e}")
+                print(f"   🔍 Error Type: {type(e).__name__}")
+                print(f"   🔍 Broker: {self.broker_host}:{self.broker_port}")
+                print(f"   🔍 TLS Enabled: {self.config.use_tls}")
+                if self.config.use_tls:
+                    print(f"   🔍 TLS Version: {self.config.tls_version}")
+                    print(f"   🔍 CA Cert Provided: {bool(self.config.ca_cert_content or self.config.ca_cert_path)}")
+                    print(f"   🔍 Client Cert Provided: {bool(self.config.client_cert_content or self.config.client_cert_path)}")
+                    print(f"   🔍 Insecure Mode: {getattr(self.config, 'insecure', False)}")
+                
+                # Add specific TLS debugging
+                if self.config.use_tls and "SSL" in str(e):
+                    print(f"   🔐 TLS/SSL Error Details:")
+                    print(f"   🔐   This is likely a TLS handshake or certificate issue")
+                    print(f"   🔐   Check that:")
+                    print(f"   🔐   - Broker is running on TLS port (usually 8883)")
+                    print(f"   🔐   - CA certificate is valid and trusted")
+                    print(f"   🔐   - Client certificate is valid (if using client auth)")
+                    print(f"   🔐   - TLS version is supported by broker")
+                    print(f"   🔐   - Broker hostname matches certificate")
+                
+                import traceback
+                print(f"   🔍 Full traceback: {traceback.format_exc()}")
+                raise
         
         # Use connection manager to connect with retry logic
         self.mqtt_client = self.mqtt_connection_mgr.connect_with_retry(connect_mqtt)
@@ -519,12 +1092,26 @@ class RedisMQTTBridge:
     
     def _on_connect(self, client, userdata, flags, rc):
         """MQTT connection callback"""
+        print(f"🔔 MQTT Connection Callback Triggered:")
+        print(f"   🔍 Return Code: {rc}")
+        print(f"   🔍 Flags: {flags}")
+        print(f"   🔍 Userdata: {userdata}")
+        print(f"   🔍 Client ID: {client._client_id}")
+        print(f"   🔍 Broker: {self.broker_host}:{self.broker_port}")
+        print(f"   🔍 TLS Enabled: {self.config.use_tls if hasattr(self, 'config') else 'Unknown'}")
+        
         if rc == 0:
             print("=" * 60)
             print("✅ MQTT BROKER CONNECTED!")
             print(f"   📍 Broker: {self.broker_host}:{self.broker_port}")
             print(f"   🔢 Connection attempt: #{self.connection_count}")
             print(f"   🕐 Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"   🔐 TLS: {'Enabled' if hasattr(self, 'config') and self.config.use_tls else 'Disabled'}")
+            if hasattr(self, 'config') and self.config.use_tls:
+                print(f"   🔐 TLS Version: {self.config.tls_version}")
+                print(f"   🔐 CA Cert: {'Provided' if (self.config.ca_cert_content or self.config.ca_cert_path) else 'Not provided'}")
+                print(f"   🔐 Client Cert: {'Provided' if (self.config.client_cert_content or self.config.client_cert_path) else 'Not provided'}")
+                print(f"   🔐 Insecure Mode: {getattr(self.config, 'insecure', False)}")
             if self.last_disconnect_time:
                 downtime = time.time() - self.last_disconnect_time
                 print(f"   ⏱️  Downtime: {downtime:.1f} seconds")
@@ -544,6 +1131,32 @@ class RedisMQTTBridge:
             print(f"   📍 Broker: {self.broker_host}:{self.broker_port}")
             print(f"   ⚠️  Error: {error_msg}")
             print(f"   🔢 Return code: {rc}")
+            print(f"   🔐 TLS: {'Enabled' if hasattr(self, 'config') and self.config.use_tls else 'Disabled'}")
+            
+            if hasattr(self, 'config') and self.config.use_tls:
+                print(f"   🔐 TLS Debug Info:")
+                print(f"   🔐   TLS Version: {self.config.tls_version}")
+                print(f"   🔐   CA Cert: {'Provided' if (self.config.ca_cert_content or self.config.ca_cert_path) else 'Not provided'}")
+                print(f"   🔐   Client Cert: {'Provided' if (self.config.client_cert_content or self.config.client_cert_path) else 'Not provided'}")
+                print(f"   🔐   Insecure Mode: {getattr(self.config, 'insecure', False)}")
+                print(f"   🔐   Port: {self.broker_port} (should be 8883 for TLS)")
+                
+                # Add TLS-specific error analysis
+                if rc == 3:  # Server unavailable
+                    print(f"   🔐   TLS Analysis: Server unavailable could mean:")
+                    print(f"   🔐     - Broker not running on TLS port {self.broker_port}")
+                    print(f"   🔐     - TLS handshake failed")
+                    print(f"   🔐     - Certificate validation failed")
+                elif rc == 4:  # Bad username/password
+                    print(f"   🔐   TLS Analysis: Auth failure could mean:")
+                    print(f"   🔐     - Client certificate not accepted by broker")
+                    print(f"   🔐     - Username/password not valid for TLS connection")
+                elif rc == 5:  # Not authorized
+                    print(f"   🔐   TLS Analysis: Not authorized could mean:")
+                    print(f"   🔐     - Client certificate not trusted by broker")
+                    print(f"   🔐     - CA certificate mismatch")
+                    print(f"   🔐     - Certificate chain validation failed")
+            
             print("=" * 60)
             logger.error(f"Failed to connect to MQTT broker at {self.broker_host}:{self.broker_port}: {error_msg} (rc={rc})")
     
