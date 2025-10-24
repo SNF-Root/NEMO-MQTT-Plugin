@@ -87,34 +87,6 @@
             <div class="col-md-5 help-block light-grey">Unique identifier for this NEMO instance on the MQTT broker.</div>
         </div>
         
-        <!-- Authentication -->
-        <div class="customization-separation"></div>
-        <h3 class="customization-section-title">Authentication</h3>
-        
-        <div class="form-group">
-            <label class="control-label col-md-3" for="mqtt_username">Username</label>
-            <div class="col-md-4">
-                <input type="text" 
-                       id="mqtt_username" 
-                       name="mqtt_username" 
-                       class="form-control" 
-                       value="{{ config.username }}">
-            </div>
-            <div class="col-md-5 help-block light-grey">Username for MQTT broker authentication (optional).</div>
-        </div>
-        
-        <div class="form-group">
-            <label class="control-label col-md-3" for="mqtt_password">Password</label>
-            <div class="col-md-4">
-                <input type="password" 
-                       id="mqtt_password" 
-                       name="mqtt_password" 
-                       class="form-control" 
-                       value="{{ config.password }}">
-            </div>
-            <div class="col-md-5 help-block light-grey">Password for MQTT broker authentication (optional).</div>
-        </div>
-        
         <!-- SSL/TLS Security -->
         <div class="customization-separation"></div>
         <h3 class="customization-section-title">SSL/TLS Security</h3>
@@ -138,19 +110,6 @@
         
         <div id="ssl-fields"{% if not config.use_tls %} style="display: none;"{% endif %}>
             <div class="form-group">
-                <label class="control-label col-md-3" for="mqtt_tls_version">TLS Version</label>
-                <div class="col-md-4">
-                    <select id="mqtt_tls_version" name="mqtt_tls_version" class="form-control">
-                        <option value="tlsv1" {% if config.tls_version == 'tlsv1' %}selected{% endif %}>TLSv1</option>
-                        <option value="tlsv1.1" {% if config.tls_version == 'tlsv1.1' %}selected{% endif %}>TLSv1.1</option>
-                        <option value="tlsv1.2" {% if config.tls_version == 'tlsv1.2' %}selected{% endif %}>TLSv1.2</option>
-                        <option value="tlsv1.3" {% if config.tls_version == 'tlsv1.3' %}selected{% endif %}>TLSv1.3</option>
-                    </select>
-                </div>
-                <div class="col-md-5 help-block light-grey">TLS version to use for secure connections.</div>
-            </div>
-            
-            <div class="form-group">
                 <label class="control-label col-md-3" for="mqtt_ca_cert">CA Certificate</label>
                 <div class="col-md-9">
                     <textarea id="mqtt_ca_cert" 
@@ -160,28 +119,6 @@
                               placeholder="-----BEGIN CERTIFICATE-----&#10;Your CA certificate content here...&#10;-----END CERTIFICATE-----">{{ config.ca_cert_content|default:"" }}</textarea>
                 </div>
                 <div class="col-md-12 help-block light-grey"></div>
-            </div>
-            
-            <div class="form-group">
-                <label class="control-label col-md-3" for="mqtt_client_cert">Client Certificate (optional)</label>
-                <div class="col-md-9">
-                    <textarea id="mqtt_client_cert" 
-                              name="mqtt_client_cert" 
-                              class="form-control" 
-                              rows="4" 
-                              placeholder="-----BEGIN CERTIFICATE-----&#10;Your client certificate content here...&#10;-----END CERTIFICATE-----">{{ config.client_cert_content|default:"" }}</textarea>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label class="control-label col-md-3" for="mqtt_client_key">Client Private Key (optional)</label>
-                <div class="col-md-9">
-                    <textarea id="mqtt_client_key" 
-                              name="mqtt_client_key" 
-                              class="form-control" 
-                              rows="4" 
-                              placeholder="-----BEGIN PRIVATE KEY-----&#10;Your private key content here...&#10;-----END PRIVATE KEY-----">{{ config.client_key_content|default:"" }}</textarea>
-                </div>
             </div>
             
             

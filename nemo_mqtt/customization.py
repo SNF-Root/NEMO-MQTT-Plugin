@@ -82,15 +82,11 @@ class MQTTCustomization(CustomizationBase):
         config.broker_port = int(request.POST.get('mqtt_broker_port', config.broker_port))
         config.keepalive = int(request.POST.get('mqtt_keepalive', config.keepalive))
         config.client_id = request.POST.get('mqtt_client_id', config.client_id)
-        config.username = request.POST.get('mqtt_username', config.username)
-        config.password = request.POST.get('mqtt_password', config.password)
         
         # SSL/TLS settings
         config.use_tls = request.POST.get('mqtt_use_tls') == 'enabled'
-        config.tls_version = request.POST.get('mqtt_tls_version', config.tls_version)
+        config.tls_version = 'tlsv1.2'  # Hardcoded to TLS 1.2
         config.ca_cert_content = request.POST.get('mqtt_ca_cert', config.ca_cert_content)
-        config.client_cert_content = request.POST.get('mqtt_client_cert', config.client_cert_content)
-        config.client_key_content = request.POST.get('mqtt_client_key', config.client_key_content)
         config.insecure = request.POST.get('mqtt_insecure') == 'enabled'
         
         # Validate TLS certificates if TLS is enabled
@@ -114,32 +110,6 @@ class MQTTCustomization(CustomizationBase):
                     print(f"   🔐   Preview: {ca_validation['preview']}")
             else:
                 print(f"   🔐 CA Certificate: Not provided")
-            
-            # Validate client certificate
-            if config.client_cert_content:
-                client_validation = validate_tls_certificate(config.client_cert_content, "CLIENT")
-                print(f"   🔐 Client Certificate Validation:")
-                print(f"   🔐   Valid: {client_validation['valid']}")
-                if client_validation['valid']:
-                    print(f"   🔐   Subject: {client_validation['cert_info'].get('subject', 'N/A')}")
-                    print(f"   🔐   Issuer: {client_validation['cert_info'].get('issuer', 'N/A')}")
-                    print(f"   🔐   Valid Until: {client_validation['cert_info'].get('not_after', 'N/A')}")
-                else:
-                    print(f"   🔐   Error: {client_validation['error']}")
-                    print(f"   🔐   Preview: {client_validation['preview']}")
-            else:
-                print(f"   🔐 Client Certificate: Not provided")
-            
-            # Validate client key
-            if config.client_key_content:
-                key_validation = validate_tls_certificate(config.client_key_content, "KEY")
-                print(f"   🔐 Client Key Validation:")
-                print(f"   🔐   Valid: {key_validation['valid']}")
-                if not key_validation['valid']:
-                    print(f"   🔐   Error: {key_validation['error']}")
-                    print(f"   🔐   Preview: {key_validation['preview']}")
-            else:
-                print(f"   🔐 Client Key: Not provided")
             
             # Test TLS connection if all required components are present
             if config.ca_cert_content or config.ca_cert_path:
