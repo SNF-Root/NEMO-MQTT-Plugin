@@ -256,149 +256,37 @@ monitor = MQTTWebMonitor()
 
 @login_required
 def mqtt_monitor(request):
-    """Web-based MQTT monitoring dashboard - shows last 10 MQTT messages"""
-    import uuid
-    view_id = str(uuid.uuid4())[:8]
-    
-    print(f"\n" + "="*80)
-    print(f"🌐 [VIEW-{view_id}] MQTT MONITOR PAGE REQUESTED")
-    print(f"="*80)
-    print(f"   User: {request.user}")
-    print(f"   Monitor running: {monitor.running}")
-    print(f"   Monitor messages: {len(monitor.messages)}")
-    
-    # Always start monitoring when page loads
-    if not monitor.running:
-        print(f"🚀 [VIEW-{view_id}] Starting MQTT monitor from web interface...")
-        monitor.start_monitoring()
-        print(f"✅ [VIEW-{view_id}] Monitor started")
-    else:
-        print(f"✅ [VIEW-{view_id}] Monitor already running")
-    
-    # Get messages from cache and filter for MQTT only
-    print(f"🔍 [VIEW-{view_id}] Retrieving messages from cache...")
-    messages = cache.get('mqtt_monitor_messages', [])
-    print(f"📊 [VIEW-{view_id}] Cache retrieval:")
-    print(f"   Total cached messages: {len(messages)}")
-    print(f"   Cache key: mqtt_monitor_messages")
-    
-    # Fallback to in-memory messages if cache is empty
-    if not messages and monitor.messages:
-        print(f"🔄 [VIEW-{view_id}] Cache empty, using in-memory messages as fallback")
-        messages = monitor.messages
-        # Re-store in cache
-        cache.set('mqtt_monitor_messages', messages, timeout=3600)
-        print(f"✅ [VIEW-{view_id}] Re-stored {len(messages)} messages in cache")
-    
-    mqtt_messages = [msg for msg in messages if msg.get('source') == 'MQTT']
-    print(f"📨 [VIEW-{view_id}] MQTT message filtering:")
-    print(f"   Total messages: {len(messages)}")
-    print(f"   MQTT messages: {len(mqtt_messages)}")
-    
-    # Show details of MQTT messages
-    for i, msg in enumerate(mqtt_messages[-5:]):  # Show last 5
-        print(f"   {i+1}. Topic: {msg.get('topic', 'unknown')} - {msg.get('payload', 'unknown')[:50]}...")
-    
-    # Prepare response
-    response_messages = mqtt_messages[-10:]  # Show last 10 MQTT messages
-    print(f"📤 [VIEW-{view_id}] Sending {len(response_messages)} messages to template")
-    
-    print(f"="*80)
-    
-    print(f"🔍 [VIEW-{view_id}] Rendering template with context:")
-    print(f"   Title: MQTT Messages")
-    print(f"   Template: NEMO_mqtt/monitor.html")
-    print(f"   User agent: {request.META.get('HTTP_USER_AGENT', 'Unknown')}")
-    print(f"   Request method: {request.method}")
-    print(f"   Request path: {request.path}")
-    
-    # Test template rendering
-    try:
-        from django.template.loader import get_template
-        template = get_template('NEMO_mqtt/monitor.html')
-        print(f"✅ [VIEW-{view_id}] Template loaded successfully")
-        
-        # Check if template has JavaScript block (fix source access)
-        try:
-            template_content = template.template.source
-            if 'extra_js' in template_content:
-                print(f"✅ [VIEW-{view_id}] Template contains extra_js block")
-            else:
-                print(f"❌ [VIEW-{view_id}] Template missing extra_js block")
-                
-            if 'JavaScript' in template_content:
-                print(f"✅ [VIEW-{view_id}] Template contains JavaScript")
-            else:
-                print(f"❌ [VIEW-{view_id}] Template missing JavaScript")
-        except Exception as e:
-            print(f"⚠️ [VIEW-{view_id}] Could not access template source: {e}")
-            print(f"✅ [VIEW-{view_id}] Template object exists and loaded successfully")
-            
-    except Exception as e:
-        print(f"❌ [VIEW-{view_id}] Template loading error: {e}")
-    
-    print(f"🚀 [VIEW-{view_id}] About to render template...")
-    
-    # Get MQTT configuration for display
+    """Web-based monitor: stream of messages NEMO publishes to Redis (pre-MQTT)."""
     mqtt_config = None
     try:
         from .utils import get_mqtt_config
         mqtt_config = get_mqtt_config()
-    except Exception as e:
-        print(f"⚠️ Could not get MQTT config: {e}")
-    
+    except Exception:
+        pass
     response = render(request, 'NEMO_mqtt/monitor.html', {
-        'title': 'MQTT Messages',
+        'title': 'NEMO → Redis stream',
         'mqtt_config': mqtt_config,
     })
-    
-    # Add cache-busting headers to prevent browser caching
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response['Pragma'] = 'no-cache'
     response['Expires'] = '0'
-    
-    print(f"✅ [VIEW-{view_id}] Template rendered successfully")
-    print(f"   Response status: {response.status_code}")
-    print(f"   Response content length: {len(response.content)}")
-    print(f"   Cache headers added: no-cache")
-    
-    # Check if response contains our debug content
-    content_str = response.content.decode('utf-8')
-    if 'Django Template Debug' in content_str:
-        print(f"✅ [VIEW-{view_id}] Response contains Django debug content")
-    else:
-        print(f"❌ [VIEW-{view_id}] Response missing Django debug content")
-        
-    if 'Static HTML Test' in content_str:
-        print(f"✅ [VIEW-{view_id}] Response contains static HTML test")
-    else:
-        print(f"❌ [VIEW-{view_id}] Response missing static HTML test")
-    
     return response
 
 
 @login_required
 @require_http_methods(["GET"])
 def mqtt_monitor_api(request):
-    """API endpoint for fetching MQTT messages only"""
+    """API endpoint: recent messages from Redis (what NEMO has published to the pipeline)."""
     try:
-        # Get messages from the monitor
-        messages = monitor.messages
-        
-        # Filter for MQTT messages only
-        mqtt_messages = [msg for msg in messages if msg.get('source') == 'MQTT']
-        
+        from .redis_publisher import redis_publisher
+        messages = redis_publisher.get_monitor_messages()
         response_data = {
-            'messages': mqtt_messages,
-            'count': len(mqtt_messages),
-            'monitoring': monitor.running
+            'messages': messages,
+            'count': len(messages),
+            'monitoring': True,
         }
-        
-        print(f"📊 API: {len(mqtt_messages)} MQTT messages")
         return JsonResponse(response_data)
-        
     except Exception as e:
-        print(f"❌ API Error: {e}")
         return JsonResponse({'error': str(e), 'messages': [], 'count': 0, 'monitoring': False}, status=500)
 
 

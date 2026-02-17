@@ -24,6 +24,10 @@ From the NEMO project root directory, run:
 - **`run_monitor.py`** - Python runner with virtual environment detection
 - **`monitor_mqtt.sh`** - Shell script wrapper for easy access
 
+## 🌐 Web monitor (Redis stream)
+
+The plugin’s web dashboard at **`/mqtt/monitor/`** shows a **stream of what NEMO publishes**: it reads from the Redis list `NEMO_mqtt_monitor` (last 100 events). This is the same pipeline that the Redis–MQTT bridge consumes; the monitor does not subscribe to the MQTT broker, so you only see events emitted by this plugin. The page auto-refreshes every 3 seconds.
+
 ## 🔧 Usage
 
 ### Full MQTT Monitor
@@ -53,6 +57,29 @@ python3 NEMO/plugins/mqtt/monitoring/../test_mqtt.py
 - Emits test signals
 - Publishes test messages
 
+## 📡 Tool enable/disable: single source of truth (UsageEvent.post_save)
+
+Tool “enable” and “disable” in NEMO (and nemo-ce) are **not** separate Django signals. They are:
+
+- **Enable** = a new usage session starts → NEMO saves a **UsageEvent** with no `end` time.
+- **Disable** = the session ends → NEMO saves the same **UsageEvent** with `end` set.
+
+The plugin uses **`UsageEvent.post_save`** as the **single source of truth** for both. When a UsageEvent is saved:
+
+| NEMO action | UsageEvent state | Events published to Redis |
+|-------------|------------------|----------------------------|
+| User enables tool (starts use) | `end` is `None` | `tool_usage_start` + `tool_enabled` |
+| User disables tool (stops use)  | `end` is set     | `tool_usage_end` + `tool_disabled` |
+
+**Topics published:**
+
+- **By tool name (usage lifecycle):**  
+  `nemo/tools/{tool_name}/start`, `nemo/tools/{tool_name}/end`
+- **By tool id (enable/disable semantics):**  
+  `nemo/tools/{tool_id}/enabled`, `nemo/tools/{tool_id}/disabled`
+
+All of these are emitted from the same **UsageEvent** handler, so you get consistent, instantaneous updates (same request as the NEMO enable/disable action).
+
 ## 🧪 Testing Tool Enable/Disable
 
 1. **Start monitoring**:
@@ -60,32 +87,34 @@ python3 NEMO/plugins/mqtt/monitoring/../test_mqtt.py
    ./monitor_mqtt.sh mqtt
    ```
 
-2. **Enable/disable a tool** in NEMO web interface
+2. **Enable/disable a tool** in the NEMO web interface (e.g. “Enable” to start use, “Disable” / “Stop” to end use).
 
 3. **Watch for messages**:
-   - Redis messages with topics like `nemo/tools/{tool_id}/enabled`
-   - MQTT messages (if external service is running)
+   - On **enable**: `nemo/tools/{name}/start` and `nemo/tools/{id}/enabled`
+   - On **disable**: `nemo/tools/{name}/end` and `nemo/tools/{id}/disabled`
+   - MQTT will show the same if the bridge is running.
 
 ## 🔍 What to Look For
 
-When you enable/disable a tool, you should see:
+When you **enable** a tool (start use), you should see two Redis (and MQTT) messages:
 
-**Redis Message:**
-```json
-{
-  "topic": "nemo/tools/1/enabled",
-  "payload": "{\"event\":\"tool_enabled\",\"tool_id\":1,\"tool_name\":\"Tool Name\",\"tool_status\":true,\"timestamp\":1234567890.123}",
-  "qos": 0,
-  "retain": false,
-  "timestamp": 1234567890.123
-}
-```
+**1. Start / usage lifecycle**
+- Topic: `nemo/tools/Fiji2/start` (example tool name)
+- Payload includes: `"event": "tool_usage_start"`, `tool_id`, `tool_name`, `user_name`, `start_time`
 
-**MQTT Message:**
-- Topic: `nemo/tools/1/enabled`
-- Payload: Same as Redis payload
-- QoS: 0
-- Retain: false
+**2. Enabled (semantic alias)**
+- Topic: `nemo/tools/2/enabled` (example tool id)
+- Payload includes: `"event": "tool_enabled"`, `tool_id`, `tool_name`, `usage_id`, `user_name`, `start_time`
+
+When you **disable** a tool (stop use), you should see:
+
+**1. End / usage lifecycle**
+- Topic: `nemo/tools/Fiji2/end`
+- Payload includes: `"event": "tool_usage_end"`, `start_time`, `end_time`, `user_name`
+
+**2. Disabled (semantic alias)**
+- Topic: `nemo/tools/2/disabled`
+- Payload includes: `"event": "tool_disabled"`, `tool_id`, `tool_name`, `usage_id`, `user_name`, `end_time`
 
 ## 🚨 Troubleshooting
 
@@ -93,7 +122,7 @@ If you don't see messages:
 
 1. **Check Redis**: `redis-cli ping`
 2. **Check MQTT broker**: `lsof -i :1883`
-3. **Check Redis-MQTT Bridge service**: `pgrep -f redis_mqtt_bridge` or `python -m NEMO_mqtt.redis_mqtt_bridge`
+3. **Check Redis-MQTT Bridge service**: `pgrep -f redis_mqtt_bridge` or `python -m nemo_mqtt.redis_mqtt_bridge`
 4. **Check Django logs** for signal handler errors
 5. **Verify MQTT plugin is enabled** in Django settings
 

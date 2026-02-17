@@ -493,15 +493,11 @@ document.addEventListener('DOMContentLoaded', function() {
     debugLog('JavaScript is executing!');
     
     // Initial load
-    debugLog('Starting initial load...');
-    debugLog('About to call fetchMessages()...');
+    debugLog('Starting initial load (Redis stream)...');
     fetchMessages();
-    debugLog('fetchMessages() call completed');
     
-    // Add a periodic check to see if something is still running
-    setInterval(() => {
-        debugLog(`Periodic check: ${allMessages.length} messages in memory, ${messagesList.children.length} DOM elements`);
-    }, 10000); // Check every 10 seconds
+    // Auto-refresh stream every 3 seconds
+    setInterval(fetchMessages, 3000);
 });
 
 // Global utility functions
@@ -577,10 +573,10 @@ function formatPayload(payload) {
     };
 }
 
-// Filter to show only MQTT messages
+// Messages are from Redis stream (source === 'Redis')
 function filterMessages() {
-    const filtered = allMessages.filter(msg => msg.source === 'MQTT');
-    debugLog(`Filtered messages: ${filtered.length} MQTT messages from ${allMessages.length} total`);
+    const filtered = allMessages.filter(msg => msg.source === 'Redis' || !msg.source);
+    debugLog(`Filtered messages: ${filtered.length} from ${allMessages.length} total`);
     return filtered;
 }
 
@@ -592,7 +588,7 @@ function displayMessages() {
         
         if (filteredMessages.length === 0) {
             debugLog('No messages to display, showing empty state');
-            messagesList.innerHTML = '<div class="no-messages"><p>No MQTT messages available.</p></div>';
+            messagesList.innerHTML = '<div class="no-messages"><p>No messages in stream yet. Events published by NEMO will appear here.</p></div>';
             messageCount.textContent = '0';
             return;
         }
@@ -602,7 +598,7 @@ function displayMessages() {
         debugLog(`Displaying ${messagesToShow.length} messages (last 10)`);
         
         const html = messagesToShow.map((msg, index) => {
-            const timestamp = new Date(msg.timestamp).toLocaleString();
+            const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '—';
             const payloadInfo = formatPayload(msg.payload);
             
             debugLog(`Message ${index + 1}: ${msg.topic} at ${timestamp}`);
@@ -610,9 +606,10 @@ function displayMessages() {
             return `
                 <div class="message-item" data-message-id="${msg.id || index}">
                     <div class="message-header">
-                        <strong>${msg.topic}</strong>
+                        <span class="message-source source-redis">Redis</span>
                         <span class="message-timestamp">${timestamp}</span>
                     </div>
+                    <div class="message-topic">${escapeHtml(msg.topic || '')}</div>
                     <div class="message-payload ${payloadInfo.type}">
                         <div class="payload-content">${payloadInfo.content}</div>
                     </div>
@@ -632,15 +629,11 @@ function displayMessages() {
     }
 }
 
-// Update connection status
+// Update connection status (monitoring = stream available)
 function updateConnectionStatus(monitoring) {
-    const mqttStatus = document.getElementById('mqtt-status');
-    
-    if (monitoring) {
-        mqttStatus.className = 'status-indicator status-running';
-    } else {
-        mqttStatus.className = 'status-indicator status-stopped';
-    }
+    const el = document.getElementById('mqtt-status');
+    if (!el) return;
+    el.className = monitoring ? 'status-indicator status-running' : 'status-indicator status-stopped';
 }
 
 console.log('=== Main JavaScript loaded ===');
@@ -649,13 +642,11 @@ console.log('=== Main JavaScript loaded ===');
     <div class="monitor-header">
         <h1>{{ title }}</h1>
         <div class="monitor-controls">
-            <button class="btn btn-primary" onclick="fetchMessages()">Refresh Now</button>
-            <button class="btn btn-warning" onclick="reconnectMonitor()">Reconnect</button>
-            <button class="btn btn-danger" onclick="clearConfigCache()">Clear Cache</button>
+            <button class="btn btn-primary" onclick="fetchMessages()">Refresh</button>
+            <button class="btn btn-secondary" onclick="clearConfigCache()">Clear config cache</button>
             <div class="connection-status">
-                <div class="connection-item">
-                    <span class="status-indicator" id="mqtt-status"></span>
-                </div>
+                <span class="status-indicator status-running" id="mqtt-status" title="Stream from Redis"></span>
+                <span class="connection-item connection-ok">Redis stream</span>
             </div>
         </div>
     </div>
@@ -701,7 +692,7 @@ console.log('=== Main JavaScript loaded ===');
     
     <div class="messages-container">
         <div class="messages-header">
-            <span>MQTT Message Monitor</span>
+            <span>NEMO → Redis stream (last 100)</span>
             <span class="message-count" id="message-count">0</span>
         </div>
         <div class="messages-list" id="messages-list">
@@ -709,7 +700,7 @@ console.log('=== Main JavaScript loaded ===');
         <div id="debug-info" style="background: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
                 <div>Debug Info:</div>
-                <div style="color: #007bff; font-weight: bold;">Version: 62.0(clean up)- {{ "now"|date:"Y-m-d H:i:s" }} - {{ request.META.HTTP_HOST }}{{ request.META.SERVER_PORT }}</div>
+                <div style="color: #007bff; font-weight: bold;">Version: 63.0(can you believe it?)- {{ "now"|date:"Y-m-d H:i:s" }} - {{ request.META.HTTP_HOST }}{{ request.META.SERVER_PORT }}</div>
                 <div style="color: #28a745; font-size: 11px;">JS Time: <span id="js-timestamp"></span></div>
             </div>
             <div id="debug-log"></div>

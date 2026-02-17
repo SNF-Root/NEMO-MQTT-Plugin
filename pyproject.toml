@@ -70,12 +70,13 @@ nemo-mqtt-setup = "NEMO_mqtt.management.commands.setup_nemo_integration:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["NEMO_mqtt*"]
+include = ["nemo_mqtt*"]
 
 [tool.setuptools.package-data]
-NEMO_mqtt = [
+nemo_mqtt = [
     "templates/**/*",
     "migrations/**/*",
+    "static/**/*",
     "*.txt",
 ]
 

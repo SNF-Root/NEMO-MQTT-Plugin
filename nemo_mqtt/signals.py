@@ -16,12 +16,11 @@ def _check_nemo_availability():
     """Check if NEMO is available and return the models if so"""
     try:
         from NEMO.models import Tool, Area, User, Reservation, UsageEvent, AreaAccessRecord
-        from NEMO.signals import tool_enabled, tool_disabled
-        return True, Tool, Area, User, Reservation, UsageEvent, AreaAccessRecord, tool_enabled, tool_disabled
+        return True, Tool, Area, User, Reservation, UsageEvent, AreaAccessRecord
     except ImportError:
-        return False, None, None, None, None, None, None, None, None
+        return False, None, None, None, None, None, None
 
-NEMO_AVAILABLE, Tool, Area, User, Reservation, UsageEvent, AreaAccessRecord, tool_enabled, tool_disabled = _check_nemo_availability()
+NEMO_AVAILABLE, Tool, Area, User, Reservation, UsageEvent, AreaAccessRecord = _check_nemo_availability()
 
 logger = logging.getLogger(__name__)
 
@@ -164,14 +163,16 @@ if NEMO_AVAILABLE:
             }
             signal_handler.publish_message(f"nemo/reservations/{instance.id}", data)
 
-    # Usage event signals
+    # Usage event signals — SINGLE SOURCE OF TRUTH for tool enable/disable
+    # NEMO (and nemo-ce) does not emit tool_enabled/tool_disabled signals; enable = new UsageEvent
+    # (no end), disable = UsageEvent.save() with end set. This handler publishes to Redis for both.
     @receiver(post_save, sender=UsageEvent)
     def usage_event_saved(sender, instance, created, **kwargs):
-        """Signal handler for usage event save events - publishes every signal received"""
+        """Publish tool usage start/end to Redis. This is the only source for tool enable/disable."""
         import uuid
         signal_id = str(uuid.uuid4())[:8]
         
-        print(f"\n🔍 [SIGNAL-{signal_id}] Django Signal Received")
+        print(f"\n🔍 [SIGNAL-{signal_id}] Django Signal Received (UsageEvent — single source for tool on/off)")
         print(f"   UsageEvent ID: {instance.id}")
         print(f"   Created: {created}")
         print(f"   Tool: {instance.tool.name}")
@@ -184,15 +185,11 @@ if NEMO_AVAILABLE:
             print(f"❌ [SIGNAL-{signal_id}] Redis publisher not available")
             return
         
-        # Determine if this is a start or end event based on the UsageEvent state
-        # If there's an end time, this is an end event; otherwise it's a start event
-        
+        # End time set = tool disabled (usage ended); no end = tool enabled (usage started)
         if instance.end is not None:
-            # This is an END event
-            print(f"🔍 [SIGNAL-{signal_id}] END TIME DETECTED - Publishing END event")
+            # Tool disabled / usage ended
+            print(f"🔍 [SIGNAL-{signal_id}] END TIME DETECTED - Publishing tool_usage_end (tool disabled)")
             print(f"   End time: {instance.end}")
-            print(f"   End time type: {type(instance.end)}")
-            print(f"   End time is not None: {instance.end is not None}")
             
             end_data = {
                 "event": "tool_usage_end",
@@ -207,16 +204,21 @@ if NEMO_AVAILABLE:
             }
             
             end_topic = f"nemo/tools/{instance.tool.name}/end"
-            print(f"📤 [SIGNAL-{signal_id}] Publishing END event to Redis...")
-            print(f"   Topic: {end_topic}")
-            print(f"   Data: {json.dumps(end_data, indent=2)}")
             signal_handler.publish_message(end_topic, end_data)
-            print(f"✅ [SIGNAL-{signal_id}] END event published to Redis")
+            # Also publish to .../disabled for consumers that expect that topic
+            disabled_data = {
+                "event": "tool_disabled",
+                "tool_id": instance.tool.id,
+                "tool_name": instance.tool.name,
+                "usage_id": instance.id,
+                "user_name": instance.user.get_full_name(),
+                "end_time": instance.end.isoformat() if instance.end else None,
+            }
+            signal_handler.publish_message(f"nemo/tools/{instance.tool.id}/disabled", disabled_data)
+            print(f"✅ [SIGNAL-{signal_id}] END + disabled events published to Redis")
         else:
-            # This is a START event
-            print(f"🔍 [SIGNAL-{signal_id}] No end time - Publishing START event")
-            print(f"   End time value: {instance.end}")
-            print(f"   End time type: {type(instance.end)}")
+            # Tool enabled / usage started
+            print(f"🔍 [SIGNAL-{signal_id}] No end time - Publishing tool_usage_start (tool enabled)")
             
             start_data = {
                 "event": "tool_usage_start",
@@ -226,16 +228,23 @@ if NEMO_AVAILABLE:
                 "tool_id": instance.tool.id,
                 "tool_name": instance.tool.name,
                 "start_time": instance.start.isoformat() if instance.start else None,
-                "end_time": instance.end.isoformat() if instance.end else None,
+                "end_time": None,
                 "timestamp": False
             }
             
             start_topic = f"nemo/tools/{instance.tool.name}/start"
-            print(f"📤 [SIGNAL-{signal_id}] Publishing START event to Redis...")
-            print(f"   Topic: {start_topic}")
-            print(f"   Data: {json.dumps(start_data, indent=2)}")
             signal_handler.publish_message(start_topic, start_data)
-            print(f"✅ [SIGNAL-{signal_id}] START event published to Redis")
+            # Also publish to .../enabled for consumers that expect that topic
+            enabled_data = {
+                "event": "tool_enabled",
+                "tool_id": instance.tool.id,
+                "tool_name": instance.tool.name,
+                "usage_id": instance.id,
+                "user_name": instance.user.get_full_name(),
+                "start_time": instance.start.isoformat() if instance.start else None,
+            }
+            signal_handler.publish_message(f"nemo/tools/{instance.tool.id}/enabled", enabled_data)
+            print(f"✅ [SIGNAL-{signal_id}] START + enabled events published to Redis")
         
         print(f"🏁 [SIGNAL-{signal_id}] Signal processing complete")
         logger.info(f"Published events for UsageEvent {instance.id}")
@@ -256,30 +265,3 @@ if NEMO_AVAILABLE:
                 "timestamp": instance._state.adding
             }
             signal_handler.publish_message(f"nemo/area_access/{instance.id}", data)
-
-    # Custom tool operational status signals
-    @receiver(tool_enabled)
-    def tool_enabled_signal(sender, instance, **kwargs):
-        """Signal handler for when a tool is enabled"""
-        if signal_handler.redis_publisher:
-            data = {
-                "event": "tool_enabled",
-                "tool_id": instance.id,
-                "tool_name": instance.name,
-                "tool_status": instance.operational,
-                "timestamp": instance._state.adding
-            }
-            signal_handler.publish_message(f"nemo/tools/{instance.id}/enabled", data)
-
-    @receiver(tool_disabled)
-    def tool_disabled_signal(sender, instance, **kwargs):
-        """Signal handler for when a tool is disabled"""
-        if signal_handler.redis_publisher:
-            data = {
-                "event": "tool_disabled",
-                "tool_id": instance.id,
-                "tool_name": instance.name,
-                "tool_status": instance.operational,
-                "timestamp": instance._state.adding
-            }
-            signal_handler.publish_message(f"nemo/tools/{instance.id}/disabled", data)

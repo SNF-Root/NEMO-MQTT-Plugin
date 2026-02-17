@@ -41,15 +41,15 @@ try:
     from NEMO.plugins.NEMO_mqtt.models import MQTTConfiguration
     from NEMO.plugins.NEMO_mqtt.utils import get_mqtt_config
 except ImportError:
-    # Fallback for development
-    from NEMO_mqtt.models import MQTTConfiguration
-    from NEMO_mqtt.utils import get_mqtt_config
+    # Fallback for development (package is nemo_mqtt)
+    from nemo_mqtt.models import MQTTConfiguration
+    from nemo_mqtt.utils import get_mqtt_config
 
 # Import the ConnectionManager
 try:
     from NEMO.plugins.NEMO_mqtt.connection_manager import ConnectionManager
 except ImportError:
-    from NEMO_mqtt.connection_manager import ConnectionManager
+    from nemo_mqtt.connection_manager import ConnectionManager
 
 # Configure logging
 logging.basicConfig(
