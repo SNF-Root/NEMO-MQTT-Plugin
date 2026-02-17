@@ -371,15 +371,10 @@ def test_tls_connection(config) -> dict:
         else:
             result['steps'].append("ℹ️  No client certificate provided")
         
-        # Step 6: Configure verification
-        if getattr(config, 'insecure', False):
-            context.check_hostname = False
-            context.verify_mode = ssl.CERT_NONE
-            result['steps'].append("⚠️  TLS verification disabled (insecure mode)")
-        else:
-            context.check_hostname = True
-            context.verify_mode = ssl.CERT_REQUIRED
-            result['steps'].append("✅ TLS verification enabled")
+        # Step 6: Configure verification (always use secure mode)
+        context.check_hostname = True
+        context.verify_mode = ssl.CERT_REQUIRED
+        result['steps'].append("✅ TLS verification enabled")
         
         # Step 7: Test SSL connection
         result['steps'].append("Testing SSL connection...")

@@ -215,7 +215,6 @@ Configure MQTT settings through the Django customization interface at `/customiz
 - **CA Certificate**: Certificate Authority certificate (PEM format)
 - **Client Certificate**: Client certificate (PEM format)
 - **Client Key**: Client private key (PEM format)
-- **Insecure Mode**: Allow insecure TLS connections (not recommended)
 
 #### **Message Settings**
 - **Topic Prefix**: Prefix for all MQTT topics (default: "nemo")

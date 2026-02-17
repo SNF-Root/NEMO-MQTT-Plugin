@@ -951,18 +951,13 @@ class RedisMQTTBridge:
                     else:
                         print("   🔐 Client Certificate: Not provided")
                     
-                    # Configure verification settings
-                    if getattr(self.config, 'insecure', False):
-                        print("   ⚠️  TLS Verification: DISABLED (insecure mode)")
-                        context.check_hostname = False
-                        context.verify_mode = ssl.CERT_NONE
-                    else:
-                        print("   🔐 TLS Verification: ENABLED")
-                        context.check_hostname = True
-                        context.verify_mode = ssl.CERT_REQUIRED
-                        
-                        if not ca_cert_loaded:
-                            print("   ⚠️  TLS Verification: No CA certificate loaded, using system defaults")
+                    # Configure verification settings (always use secure mode)
+                    print("   🔐 TLS Verification: ENABLED")
+                    context.check_hostname = True
+                    context.verify_mode = ssl.CERT_REQUIRED
+                    
+                    if not ca_cert_loaded:
+                        print("   ⚠️  TLS Verification: No CA certificate loaded, using system defaults")
                     
                     # Set additional SSL context options
                     context.options |= ssl.OP_NO_SSLv2

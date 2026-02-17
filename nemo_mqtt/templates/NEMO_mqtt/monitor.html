@@ -394,71 +394,6 @@ function fetchMessages() {
     });
 }
 
-// Reconnect monitor function
-function reconnectMonitor() {
-    debugLog('reconnectMonitor() called');
-    const url = '/mqtt/monitor/control/';
-    
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: 'action=reconnect'
-    })
-    .then(response => {
-        debugLog(`Reconnect response status: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        debugLog(`Reconnect response: ${JSON.stringify(data)}`);
-        if (data.status === 'reconnected') {
-            debugLog('Monitor reconnected successfully');
-            // Refresh messages after reconnection
-            setTimeout(() => {
-                fetchMessages();
-            }, 2000);
-        }
-    })
-    .catch(error => {
-        debugLog(`Error reconnecting monitor: ${error.message}`);
-        console.error('Error reconnecting monitor:', error);
-    });
-}
-
-// Clear configuration cache function
-function clearConfigCache() {
-    debugLog('clearConfigCache() called');
-    const url = '/mqtt/monitor/control/';
-    
-    fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'X-CSRFToken': getCookie('csrftoken')
-        },
-        body: 'action=clear_cache'
-    })
-    .then(response => {
-        debugLog(`Clear cache response status: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        debugLog(`Clear cache response: ${JSON.stringify(data)}`);
-        if (data.status === 'cache_cleared') {
-            debugLog('Configuration cache cleared successfully');
-            // Refresh the page to show updated configuration
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-        }
-    })
-    .catch(error => {
-        debugLog(`Error clearing cache: ${error.message}`);
-        console.error('Error clearing cache:', error);
-    });
-}
 
 // Helper function to get CSRF token
 function getCookie(name) {
@@ -643,7 +578,6 @@ console.log('=== Main JavaScript loaded ===');
         <h1>{{ title }}</h1>
         <div class="monitor-controls">
             <button class="btn btn-primary" onclick="fetchMessages()">Refresh</button>
-            <button class="btn btn-secondary" onclick="clearConfigCache()">Clear config cache</button>
             <div class="connection-status">
                 <span class="status-indicator status-running" id="mqtt-status" title="Stream from Redis"></span>
                 <span class="connection-item connection-ok">Redis stream</span>

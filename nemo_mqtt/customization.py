@@ -87,13 +87,12 @@ class MQTTCustomization(CustomizationBase):
         config.use_tls = request.POST.get('mqtt_use_tls') == 'enabled'
         config.tls_version = 'tlsv1.2'  # Hardcoded to TLS 1.2
         config.ca_cert_content = request.POST.get('mqtt_ca_cert', config.ca_cert_content)
-        config.insecure = request.POST.get('mqtt_insecure') == 'enabled'
+        config.insecure = False  # Always use secure TLS connections
         
         # Validate TLS certificates if TLS is enabled
         if config.use_tls:
             print("🔐 TLS Configuration Validation:")
             print(f"   🔐 TLS Version: {config.tls_version}")
-            print(f"   🔐 Insecure Mode: {config.insecure}")
             
             # Validate CA certificate
             if config.ca_cert_content:

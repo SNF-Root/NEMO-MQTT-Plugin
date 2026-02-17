@@ -57,6 +57,28 @@ python3 NEMO/plugins/mqtt/monitoring/../test_mqtt.py
 - Emits test signals
 - Publishes test messages
 
+## ⚙️ Configuration Settings
+
+### Keep Alive (seconds)
+
+The **Keep Alive** setting (default: 60 seconds) controls how the MQTT client maintains its connection with the broker.
+
+**What it does:**
+
+1. **Heartbeat mechanism**: The client must send at least one packet (data or PING) to the broker within the keep-alive interval to prove it's still alive.
+
+2. **Connection monitoring**: If the broker doesn't receive any packet within 1.5× the keep-alive interval (e.g., 90 seconds for a 60-second keep-alive), it considers the client disconnected and may close the connection.
+
+3. **Prevents stale connections**: Helps detect and clean up dead or unresponsive connections automatically.
+
+**In practice:**
+
+- **Default (60 seconds)**: Works well for most NEMO deployments. The plugin sends messages regularly, so the keep-alive mainly acts as a safety net.
+- **Increase (120-300 seconds)**: Useful for battery-constrained devices or when you want to reduce network traffic. Allows longer periods between messages.
+- **Decrease (30 seconds)**: Provides faster detection of disconnections, useful in unstable network environments.
+
+**Note**: Since the NEMO MQTT plugin publishes messages regularly (tool events, area events, etc.), the keep-alive interval primarily serves as a connection health check rather than the primary mechanism for maintaining connectivity.
+
 ## 📡 Tool enable/disable: single source of truth (UsageEvent.post_save)
 
 Tool “enable” and “disable” in NEMO (and nemo-ce) are **not** separate Django signals. They are:
