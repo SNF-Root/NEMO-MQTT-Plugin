@@ -65,7 +65,7 @@ class MQTTConfiguration(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = "NEMO_mqtt_mqttconfiguration"  # keep for backward compatibility with existing installs
+        db_table = "nemo_mqtt_mqttconfiguration"
         verbose_name = "MQTT Configuration"
         verbose_name_plural = "MQTT Configurations"
 
@@ -85,7 +85,7 @@ class MQTTMessageLog(models.Model):
     sent_at = models.DateTimeField(auto_now_add=True, help_text="When message was sent")
     
     class Meta:
-        db_table = "NEMO_mqtt_mqttmessagelog"  # keep for backward compatibility with existing installs
+        db_table = "nemo_mqtt_mqttmessagelog"
         verbose_name = "MQTT Message Log"
         verbose_name_plural = "MQTT Message Logs"
         ordering = ['-sent_at']
@@ -118,7 +118,7 @@ class MQTTEventFilter(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = "NEMO_mqtt_mqtteventfilter"  # keep for backward compatibility with existing installs
+        db_table = "nemo_mqtt_mqtteventfilter"
         verbose_name = "MQTT Event Filter"
         verbose_name_plural = "MQTT Event Filters"
         unique_together = ['event_type']

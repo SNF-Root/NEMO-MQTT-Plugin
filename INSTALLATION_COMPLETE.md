@@ -37,11 +37,11 @@ Target: `/Users/adenton/Desktop/nemo-ce`
 
 ### 2. Backup
 - ✅ Created backup: `/Users/adenton/Desktop/nemo-ce/mqtt_plugin_backup_20251013_172905`
-- ✅ Backed up old NEMO_mqtt directory
+- ✅ Backed up old nemo_mqtt directory
 - ✅ Backed up NEMO/urls.py
 
 ### 3. Installation
-- ✅ Plugin installed to: `/Users/adenton/Desktop/nemo-ce/NEMO/plugins/NEMO/NEMO_mqtt`
+- ✅ Plugin installed to: `/Users/adenton/Desktop/nemo-ce/NEMO/plugins/NEMO/nemo_mqtt`
 - ✅ Django integration configured
 - ✅ Already in `INSTALLED_APPS`
 - ✅ URLs already configured
@@ -73,10 +73,10 @@ When Django starts, you should see:
 ### 4. Test the Bridge
 ```bash
 # In another terminal, watch for messages
-python -m NEMO_mqtt.monitoring.redis_checker
+python -m nemo_mqtt.monitoring.redis_checker
 
 # Or full MQTT monitoring
-python -m NEMO_mqtt.monitoring.mqtt_monitor
+python -m nemo_mqtt.monitoring.mqtt_monitor
 ```
 
 ## 🔍 What Changed from Old System
@@ -116,7 +116,7 @@ FAILED tests/test_redis_publisher.py::RedisMQTTPublisherTest::test_publish_event
 
 Your existing MQTT configuration is preserved:
 - **Config**: Default MQTT Configuration (Enabled)
-- **Location**: `/Users/adenton/Desktop/nemo-ce/NEMO/plugins/NEMO/NEMO_mqtt`
+- **Location**: `/Users/adenton/Desktop/nemo-ce/NEMO/plugins/NEMO/nemo_mqtt`
 - **Database**: All settings and logs preserved
 
 ## 🎯 Current Status
@@ -146,16 +146,16 @@ lsof -i :1883
 tail -f /path/to/django/logs
 
 # Manually start bridge
-python -m NEMO_mqtt.redis_mqtt_bridge --auto
+python -m nemo_mqtt.redis_mqtt_bridge --auto
 ```
 
 ### If Messages Aren't Flowing
 ```bash
 # Check Redis queue
-python -m NEMO_mqtt.monitoring.redis_checker
+python -m nemo_mqtt.monitoring.redis_checker
 
 # Check full flow
-python -m NEMO_mqtt.monitoring.mqtt_monitor
+python -m nemo_mqtt.monitoring.mqtt_monitor
 ```
 
 ## 🎊 Success!

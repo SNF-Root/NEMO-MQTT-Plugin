@@ -12,7 +12,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-NEMO_PATH="/Users/alexanderdenton/Desktop/nemo-ce"  # Default path for local development
+NEMO_PATH="/Users/adenton/Desktop/nemo-ce-alex"  # Default path for local development
 FORCE_REINSTALL=false
 SKIP_TESTS=false
 SKIP_BUILD=false
@@ -41,7 +41,7 @@ show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
     echo "Options:"
-    echo "  -n, --nemo-path PATH    Path to NEMO-CE installation (default: /Users/alexanderdenton/Desktop/nemo-ce)"
+    echo "  -n, --nemo-path PATH    Path to NEMO-CE installation (default: /Users/adenton/Desktop/nemo-ce-alex)"
     echo "  -f, --force            Force reinstall even if package exists"
     echo "  -s, --skip-tests       Skip running tests"
     echo "  -b, --skip-build       Skip building package (use existing dist/)"
