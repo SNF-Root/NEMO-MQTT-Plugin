@@ -23,8 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings_dev')
 django.setup()
 
-from NEMO_mqtt.models import MQTTConfiguration
-from NEMO_mqtt.utils import validate_tls_certificate, test_tls_connection
+from nemo_mqtt.models import MQTTConfiguration
+from nemo_mqtt.utils import validate_tls_certificate, test_tls_connection
 
 
 def main():

@@ -26,7 +26,7 @@ From the NEMO project root directory, run:
 
 ## 🌐 Web monitor (Redis stream)
 
-The plugin’s web dashboard at **`/mqtt/monitor/`** shows a **stream of what NEMO publishes**: it reads from the Redis list `NEMO_mqtt_monitor` (last 100 events). This is the same pipeline that the Redis–MQTT bridge consumes; the monitor does not subscribe to the MQTT broker, so you only see events emitted by this plugin. The page auto-refreshes every 3 seconds.
+The plugin’s web dashboard at **`/mqtt/monitor/`** shows a **stream of what NEMO publishes**: it reads from the Redis list `nemo_mqtt_monitor` (last 100 events). This is the same pipeline that the Redis–MQTT bridge consumes; the monitor does not subscribe to the MQTT broker, so you only see events emitted by this plugin. The page auto-refreshes every 3 seconds.
 
 ## 🔧 Usage
 

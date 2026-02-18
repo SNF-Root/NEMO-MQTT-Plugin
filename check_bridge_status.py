@@ -27,13 +27,13 @@ try:
     print("   ✅ Redis is accessible")
     
     # Check queue length
-    queue_len = r.llen('NEMO_mqtt_events')
+    queue_len = r.llen('nemo_mqtt_events')
     print(f"   📊 Redis queue length: {queue_len} messages")
     
     if queue_len > 0:
         print(f"   ⚠️  WARNING: {queue_len} messages waiting to be consumed!")
         print("   🔍 Peeking at first message:")
-        first_msg = r.lindex('NEMO_mqtt_events', -1)  # Get oldest message
+        first_msg = r.lindex('nemo_mqtt_events', -1)  # Get oldest message
         print(f"      {first_msg[:200]}...")
     
 except Exception as e:
@@ -61,7 +61,7 @@ else:
 # Check MQTT config
 print("\n3. Checking MQTT configuration...")
 try:
-    from NEMO.plugins.NEMO_mqtt.utils import get_mqtt_config
+    from nemo_mqtt.utils import get_mqtt_config
     config = get_mqtt_config()
     if config:
         print(f"   ✅ Config found: {config.name}")
@@ -75,7 +75,7 @@ except Exception as e:
 # Try to access bridge instance
 print("\n4. Checking bridge instance...")
 try:
-    from NEMO.plugins.NEMO_mqtt.redis_mqtt_bridge import get_mqtt_bridge, _mqtt_bridge_instance
+    from nemo_mqtt.redis_mqtt_bridge import get_mqtt_bridge, _mqtt_bridge_instance
     
     if _mqtt_bridge_instance is None:
         print("   ❌ Bridge instance is None - NOT INITIALIZED!")

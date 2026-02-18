@@ -8,7 +8,7 @@ pip install -e .[dev,test]
 
 # Run tests with coverage
 pytest tests/ \
-    --cov=NEMO_mqtt \
+    --cov=nemo_mqtt \
     --cov-report=html \
     --cov-report=term-missing \
     --cov-report=xml \

@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class MqttPluginConfig(AppConfig):
     name = "nemo_mqtt"
-    label = "NEMO_mqtt"
+    label = "nemo_mqtt"
     verbose_name = "MQTT Plugin"
     default_auto_field = "django.db.models.AutoField"
     _initialized = False
@@ -28,6 +28,14 @@ class MqttPluginConfig(AppConfig):
         if "migrate" in self.get_migration_args():
             logger.info("Migration detected, skipping MQTT plugin initialization")
             return
+        
+        # Check for NEMO dependencies (like nemo-publications plugin)
+        try:
+            from NEMO.plugins.utils import check_extra_dependencies
+            check_extra_dependencies(self.name, ["NEMO", "NEMO-CE"])
+        except ImportError:
+            # NEMO.plugins.utils might not be available in all versions
+            pass
             
         # Import signal handlers to register them immediately
         try:

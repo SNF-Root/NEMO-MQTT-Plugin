@@ -153,7 +153,7 @@ monitor_services() {
         fi
         
         # Check Redis queue length
-        QUEUE_LENGTH=$(redis-cli -n 1 llen NEMO_mqtt_events 2>/dev/null || echo "0")
+        QUEUE_LENGTH=$(redis-cli -n 1 llen nemo_mqtt_events 2>/dev/null || echo "0")
         if [ "$QUEUE_LENGTH" -gt 1000 ]; then
             log_warning "Message queue is large: $QUEUE_LENGTH messages"
         fi
@@ -171,7 +171,7 @@ check_status() {
     # Redis
     if check_redis; then
         log_success "Redis: Running"
-        QUEUE_LENGTH=$(redis-cli -n 1 llen NEMO_mqtt_events 2>/dev/null || echo "0")
+        QUEUE_LENGTH=$(redis-cli -n 1 llen nemo_mqtt_events 2>/dev/null || echo "0")
         echo "  Queue length: $QUEUE_LENGTH messages"
     else
         log_error "Redis: Not running"

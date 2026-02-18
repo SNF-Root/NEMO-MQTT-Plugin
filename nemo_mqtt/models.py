@@ -65,9 +65,10 @@ class MQTTConfiguration(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = "NEMO_mqtt_mqttconfiguration"  # keep for backward compatibility with existing installs
         verbose_name = "MQTT Configuration"
         verbose_name_plural = "MQTT Configurations"
-    
+
     def __str__(self):
         return f"{self.name} ({'Enabled' if self.enabled else 'Disabled'})"
 
@@ -84,10 +85,11 @@ class MQTTMessageLog(models.Model):
     sent_at = models.DateTimeField(auto_now_add=True, help_text="When message was sent")
     
     class Meta:
+        db_table = "NEMO_mqtt_mqttmessagelog"  # keep for backward compatibility with existing installs
         verbose_name = "MQTT Message Log"
         verbose_name_plural = "MQTT Message Logs"
         ordering = ['-sent_at']
-    
+
     def __str__(self):
         status = "Success" if self.success else "Failed"
         return f"{self.topic} - {status} ({self.sent_at})"
@@ -116,10 +118,11 @@ class MQTTEventFilter(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
+        db_table = "NEMO_mqtt_mqtteventfilter"  # keep for backward compatibility with existing installs
         verbose_name = "MQTT Event Filter"
         verbose_name_plural = "MQTT Event Filters"
         unique_together = ['event_type']
-    
+
     def __str__(self):
         return f"{self.get_event_type_display()} ({'Enabled' if self.enabled else 'Disabled'})"
 

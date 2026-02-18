@@ -3,10 +3,10 @@ include LICENSE
 include CHANGELOG.md
 include requirements.txt
 include pyproject.toml
-recursive-include NEMO_mqtt/templates *
-recursive-include NEMO_mqtt/migrations *
-include NEMO_mqtt/*.txt
-include NEMO_mqtt/*.service
+recursive-include nemo_mqtt/templates *
+recursive-include nemo_mqtt/migrations *
+include nemo_mqtt/*.txt
+include nemo_mqtt/*.service
 global-exclude *.pyc
 global-exclude __pycache__
 global-exclude .git*

@@ -56,7 +56,7 @@ class Command(BaseCommand):
         )
         
         self.stdout.write('\n📋 Next steps:')
-        self.stdout.write('1. Run migrations: python manage.py migrate NEMO_mqtt')
+        self.stdout.write('1. Run migrations: python manage.py migrate nemo_mqtt')
         self.stdout.write('2. Start NEMO: python manage.py runserver')
         self.stdout.write('3. Configure MQTT in Django admin')
 
@@ -98,31 +98,31 @@ class Command(BaseCommand):
         modified = False
         
         # Add to INSTALLED_APPS
-        if "'NEMO_mqtt'" not in content and '"NEMO_mqtt"' not in content:
+        if "'nemo_mqtt'" not in content and '"nemo_mqtt"' not in content:
             pattern = r'(INSTALLED_APPS\s*=\s*\[[^\]]*)(\]\s*$)'
             match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
             
             if match:
-                new_content = content[:match.start(2)] + "    'NEMO_mqtt',\n" + match.group(2)
+                new_content = content[:match.start(2)] + "    'nemo_mqtt',\n" + match.group(2)
                 with open(settings_file, 'w') as f:
                     f.write(new_content)
-                self.stdout.write(f'✅ Added NEMO_mqtt to INSTALLED_APPS in {settings_file}')
+                self.stdout.write(f'✅ Added nemo_mqtt to INSTALLED_APPS in {settings_file}')
                 modified = True
             else:
                 self.stdout.write(f'⚠️  Could not find INSTALLED_APPS in {settings_file}')
         else:
-            self.stdout.write(f'✅ NEMO_mqtt already in INSTALLED_APPS in {settings_file}')
+            self.stdout.write(f'✅ nemo_mqtt already in INSTALLED_APPS in {settings_file}')
             modified = True
         
         # Add logging configuration
-        if "'NEMO_mqtt'" not in content or "loggers" not in content:
+        if "'nemo_mqtt'" not in content or "loggers" not in content:
             if "LOGGING" in content:
                 pattern = r'(\s+)(\'loggers\':\s*\{[^}]*)(\})'
                 match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
                 
                 if match:
                     logger_config = """
-        'NEMO_mqtt': {
+        'nemo_mqtt': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
@@ -151,15 +151,15 @@ class Command(BaseCommand):
             content = f.read()
         
         # Check if already added
-        if "NEMO_mqtt.urls" in content:
+        if "nemo_mqtt.urls" in content:
             self.stdout.write(f'✅ MQTT URLs already added to {urls_file}')
             return True
-        
+
         # Add MQTT URLs
         mqtt_urls = """
     # Add MQTT plugin URLs
     urlpatterns += [
-        path("mqtt/", include("NEMO_mqtt.urls")),
+        path("mqtt/", include("nemo_mqtt.urls")),
     ]"""
         
         # Find a good place to add the URLs

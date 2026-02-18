@@ -69,7 +69,7 @@ class Command(BaseCommand):
 
     def is_plugin_installed(self):
         """Check if plugin is already installed"""
-        return 'NEMO_mqtt' in settings.INSTALLED_APPS
+        return 'nemo_mqtt' in settings.INSTALLED_APPS
 
     def install_python_package(self):
         """Install the plugin as a Python package"""
@@ -91,7 +91,7 @@ class Command(BaseCommand):
             raise CommandError(f'Failed to install Python package: {e.stderr}')
 
     def add_to_installed_apps(self, create_backup=False):
-        """Add NEMO_mqtt to INSTALLED_APPS"""
+        """Add nemo_mqtt to INSTALLED_APPS"""
         self.stdout.write('📝 Adding to INSTALLED_APPS...')
         
         # Find settings file
@@ -107,8 +107,8 @@ class Command(BaseCommand):
             content = f.read()
         
         # Check if already added
-        if "'NEMO_mqtt'" in content or '"NEMO_mqtt"' in content:
-            self.stdout.write(self.style.WARNING('⚠️  NEMO_mqtt already in INSTALLED_APPS'))
+        if "'nemo_mqtt'" in content or '"nemo_mqtt"' in content:
+            self.stdout.write(self.style.WARNING('⚠️  nemo_mqtt already in INSTALLED_APPS'))
             return
         
         # Add to INSTALLED_APPS
@@ -117,7 +117,7 @@ class Command(BaseCommand):
         match = re.search(pattern, content, re.MULTILINE | re.DOTALL)
         
         if match:
-            new_content = content[:match.start(2)] + "    'NEMO_mqtt',\n" + match.group(2)
+            new_content = content[:match.start(2)] + "    'nemo_mqtt',\n" + match.group(2)
             
             with open(settings_file, 'w') as f:
                 f.write(new_content)
@@ -141,7 +141,7 @@ class Command(BaseCommand):
             content = f.read()
         
         # Check if already added
-        if "NEMO_mqtt.urls" in content:
+        if "nemo_mqtt.urls" in content:
             self.stdout.write(self.style.WARNING('⚠️  MQTT URLs already added'))
             return
         
@@ -154,7 +154,7 @@ class Command(BaseCommand):
             mqtt_urls = f"""
     # Add MQTT plugin URLs
     urlpatterns += [
-        path("mqtt/", include("NEMO_mqtt.urls")),
+        path("mqtt/", include("nemo_mqtt.urls")),
     ]"""
             new_content = content[:match.end()] + mqtt_urls + content[match.end():]
         else:
@@ -167,7 +167,7 @@ class Command(BaseCommand):
                 "",
                 "    # Add MQTT plugin URLs",
                 "    urlpatterns += [",
-                "        path(\"mqtt/\", include(\"NEMO_mqtt.urls\")),",
+                "        path(\"mqtt/\", include(\"nemo_mqtt.urls\")),",
                 "    ]"
             ]
             lines.extend(mqtt_urls)
@@ -183,7 +183,7 @@ class Command(BaseCommand):
         
         try:
             result = subprocess.run(
-                [sys.executable, 'manage.py', 'migrate', 'NEMO_mqtt'],
+                [sys.executable, 'manage.py', 'migrate', 'nemo_mqtt'],
                 capture_output=True,
                 text=True,
                 check=True
@@ -197,7 +197,7 @@ class Command(BaseCommand):
         self.stdout.write('🔍 Verifying installation...')
         
         # Check if plugin is in INSTALLED_APPS
-        if 'NEMO_mqtt' not in settings.INSTALLED_APPS:
+        if 'nemo_mqtt' not in settings.INSTALLED_APPS:
             raise CommandError('Plugin not found in INSTALLED_APPS')
         
         # Check if URLs are accessible

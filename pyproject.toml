@@ -43,6 +43,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+NEMO-CE = ["NEMO-CE>=7.0.0"]
+NEMO = ["NEMO>=7.0.0"]
 dev = [
     "pytest>=6.0",
     "pytest-django>=4.0",
@@ -66,11 +68,10 @@ Repository = "https://github.com/SNF-Root/NEMO-MQTT-Plugin.git"
 Changelog = "https://github.com/SNF-Root/NEMO-MQTT-Plugin/blob/main/CHANGELOG.md"
 
 [project.scripts]
-nemo-mqtt-setup = "NEMO_mqtt.management.commands.setup_nemo_integration:main"
+nemo-mqtt-setup = "nemo_mqtt.management.commands.setup_nemo_integration:main"
 
-[tool.setuptools.packages.find]
-where = ["."]
-include = ["nemo_mqtt*"]
+[tool.setuptools]
+packages = {find = {}}
 
 [tool.setuptools.package-data]
 nemo_mqtt = [
@@ -104,17 +105,17 @@ profile = "black"
 multi_line_output = 3
 line_length = 88
 known_django = "django"
-known_first_party = "NEMO_mqtt"
+known_first_party = "nemo_mqtt"
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "DJANGO", "FIRSTPARTY", "LOCALFOLDER"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "tests.test_settings"
 python_files = ["test_*.py", "*_test.py"]
-addopts = "-v --tb=short --cov=NEMO_mqtt --cov-report=html --cov-report=term-missing"
+addopts = "-v --tb=short --cov=nemo_mqtt --cov-report=html --cov-report=term-missing"
 testpaths = ["tests"]
 
 [tool.coverage.run]
-source = ["NEMO_mqtt"]
+source = ["nemo_mqtt"]
 omit = [
     "*/migrations/*",
     "*/tests/*",

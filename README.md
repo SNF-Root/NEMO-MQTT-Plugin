@@ -77,7 +77,7 @@ A comprehensive Django plugin that provides MQTT integration for NEMO tool usage
    python manage.py setup_nemo_integration
 
 # Run migrations
-python manage.py migrate NEMO_mqtt
+python manage.py migrate nemo_mqtt
    ```
 
 #### **Method 2: Development Installation**
@@ -93,7 +93,7 @@ pip install -e .[dev]
 # Set up NEMO integration
 cd /path/to/your/nemo-ce
 python manage.py setup_nemo_integration
-python manage.py migrate NEMO_mqtt
+python manage.py migrate nemo_mqtt
 ```
 
 #### **Method 3: Manual Setup**
@@ -107,20 +107,20 @@ python manage.py migrate NEMO_mqtt
    ```python
    INSTALLED_APPS = [
        # ... other apps
-       'NEMO_mqtt',
+       'nemo_mqtt',
    ]
    ```
 
 3. **Add URLs to NEMO/urls.py:**
    ```python
    urlpatterns += [
-       path("mqtt/", include("NEMO_mqtt.urls")),
+       path("mqtt/", include("nemo_mqtt.urls")),
    ]
    ```
 
 4. **Run migrations:**
    ```bash
-   python manage.py migrate NEMO_mqtt
+   python manage.py migrate nemo_mqtt
    ```
 
 ## Quick Start
@@ -183,7 +183,7 @@ For production deployment:
 4. **Start MQTT Service:**
    ```bash
    # Start the Redis-MQTT bridge service
-   python -m NEMO_mqtt.redis_mqtt_bridge
+   python -m nemo_mqtt.redis_mqtt_bridge
    
    # Or use the systemd service (if configured)
    sudo systemctl start nemo-mqtt
@@ -267,7 +267,7 @@ _mqtt_bridge_instance = RedisMQTTBridge(auto_start=False)  # Safe for production
 #### **Database Isolation**
 - **Database**: Uses Redis DB 1 (not default DB 0)
 - **Purpose**: Prevents conflicts with other applications using Redis
-- **Queue Name**: `NEMO_mqtt_events` (Redis list)
+- **Queue Name**: `nemo_mqtt_events` (Redis list)
 - **Isolation**: Complete separation from system Redis usage
 
 #### **Redis Connection Settings**
@@ -324,8 +324,8 @@ pkill -9 mosquitto        # Force kill if needed
 #### **2. Redis Database 1 Usage**
 ```bash
 # Check plugin messages (use DB 1, not default DB 0)
-redis-cli -n 1 llen NEMO_mqtt_events
-redis-cli -n 1 lrange NEMO_mqtt_events 0 -1
+redis-cli -n 1 llen nemo_mqtt_events
+redis-cli -n 1 lrange nemo_mqtt_events 0 -1
 ```
 
 #### **3. Configuration Caching**
@@ -403,7 +403,7 @@ Access the real-time monitoring dashboard at `/mqtt/monitor/`:
 #### **Full MQTT Monitor**
 ```bash
 # Monitor both Redis and MQTT messages
-python NEMO_mqtt/monitoring/mqtt_monitor.py
+python nemo_mqtt/monitoring/mqtt_monitor.py
 
 # Or use the monitoring script
 ./scripts/monitor_services.sh
@@ -412,7 +412,7 @@ python NEMO_mqtt/monitoring/mqtt_monitor.py
 #### **Redis-Only Monitor**
 ```bash
 # Monitor Redis messages only
-python NEMO_mqtt/monitoring/redis_checker.py
+python nemo_mqtt/monitoring/redis_checker.py
 ```
 
 #### **Signal Testing**
@@ -472,7 +472,7 @@ After=network.target redis.service
 Type=simple
 User=nemo
 WorkingDirectory=/path/to/nemo-ce
-ExecStart=/path/to/nemo-ce/venv/bin/python -m NEMO_mqtt.redis_mqtt_bridge
+ExecStart=/path/to/nemo-ce/venv/bin/python -m nemo_mqtt.redis_mqtt_bridge
 Restart=always
 RestartSec=5
 
@@ -520,7 +520,7 @@ The NEMO MQTT Plugin uses a sophisticated multi-layered architecture designed fo
 - **Configuration**: Load MQTT settings from Django database
 
 #### 2. **Redis Bridge Layer**
-- **Message Queue**: Redis list (`NEMO_mqtt_events`) for reliable message queuing
+- **Message Queue**: Redis list (`nemo_mqtt_events`) for reliable message queuing
 - **Persistence**: Messages persist across service restarts
 - **Ordering**: FIFO message processing ensures correct event sequence
 - **Isolation**: Separate Redis database (DB 1) for plugin isolation
@@ -602,7 +602,7 @@ sequenceDiagram
    # Use the management command
    cd /path/to/your/nemo-ce
    python manage.py setup_nemo_integration
-   python manage.py migrate NEMO_mqtt
+   python manage.py migrate nemo_mqtt
    ```
 
 3. **Start Development Services:**
@@ -625,12 +625,12 @@ sequenceDiagram
 
 #### **Key Development Files**
 
-- **`NEMO_mqtt/signals.py`**: Django signal handlers for MQTT events
-- **`NEMO_mqtt/views.py`**: Web monitoring dashboard and API endpoints
-- **`NEMO_mqtt/models.py`**: Database models for configuration and logging
-- **`NEMO_mqtt/redis_mqtt_bridge.py`**: Redis-MQTT bridge service
-- **`NEMO_mqtt/redis_publisher.py`**: Redis-based message publishing
-- **`templates/NEMO_mqtt/monitor.html`**: Web monitoring dashboard UI
+- **`nemo_mqtt/signals.py`**: Django signal handlers for MQTT events
+- **`nemo_mqtt/views.py`**: Web monitoring dashboard and API endpoints
+- **`nemo_mqtt/models.py`**: Database models for configuration and logging
+- **`nemo_mqtt/redis_mqtt_bridge.py`**: Redis-MQTT bridge service
+- **`nemo_mqtt/redis_publisher.py`**: Redis-based message publishing
+- **`templates/nemo_mqtt/monitor.html`**: Web monitoring dashboard UI
 
 ### Testing
 
@@ -646,7 +646,7 @@ pytest tests/test_models.py
 pytest tests/test_views.py
 
 # Run with coverage
-pytest --cov=NEMO_mqtt --cov-report=html
+pytest --cov=nemo_mqtt --cov-report=html
 ```
 
 #### **Test Categories**
@@ -664,13 +664,13 @@ pytest --cov=NEMO_mqtt --cov-report=html
 python manage.py test_mqtt_api
 
 # Monitor MQTT messages in real-time
-python NEMO_mqtt/monitoring/mqtt_monitor.py
+python nemo_mqtt/monitoring/mqtt_monitor.py
 
 # Test Redis connectivity
-python NEMO_mqtt/monitoring/redis_checker.py
+python nemo_mqtt/monitoring/redis_checker.py
 
 # Run comprehensive tests
-python manage.py test NEMO_mqtt
+python manage.py test nemo_mqtt
 ```
 
 #### **Testing Scenarios**
@@ -700,37 +700,37 @@ python manage.py test NEMO_mqtt
 
 ```bash
 # Format code with Black
-black NEMO_mqtt/
+black nemo_mqtt/
 
 # Sort imports with isort
-isort NEMO_mqtt/
+isort nemo_mqtt/
 
 # Format all Python files
-find NEMO_mqtt/ -name "*.py" -exec black {} \;
-find NEMO_mqtt/ -name "*.py" -exec isort {} \;
+find nemo_mqtt/ -name "*.py" -exec black {} \;
+find nemo_mqtt/ -name "*.py" -exec isort {} \;
 ```
 
 #### **Linting**
 
 ```bash
 # Run flake8 linting
-flake8 NEMO_mqtt/
+flake8 nemo_mqtt/
 
 # Run with specific configuration
-flake8 NEMO_mqtt/ --max-line-length=100 --ignore=E203,W503
+flake8 nemo_mqtt/ --max-line-length=100 --ignore=E203,W503
 
 # Run pylint
-pylint NEMO_mqtt/
+pylint nemo_mqtt/
 ```
 
 #### **Type Checking**
 
 ```bash
 # Run mypy type checking
-mypy NEMO_mqtt/
+mypy nemo_mqtt/
 
 # Run with strict mode
-mypy NEMO_mqtt/ --strict
+mypy nemo_mqtt/ --strict
 ```
 
 ### Debugging
@@ -749,7 +749,7 @@ LOGGING = {
         },
     },
     'loggers': {
-        'NEMO_mqtt': {
+        'nemo_mqtt': {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': True,
@@ -804,7 +804,7 @@ python setup.py sdist bdist_wheel
 pip install dist/nemo_mqtt_plugin-1.0.0-py3-none-any.whl
 
 # Test installation
-python -c "import NEMO_mqtt; print('Installation successful')"
+python -c "import nemo_mqtt; print('Installation successful')"
 ```
 
 #### **Publishing to PyPI**
@@ -973,7 +973,7 @@ client.loop_forever()
 **Solution**:
 1. **Switch to EXTERNAL mode** (recommended for production):
    ```python
-   # In NEMO_mqtt/apps.py, change line 82-83:
+   # In nemo_mqtt/apps.py, change line 82-83:
    from .redis_mqtt_bridge import RedisMQTTBridge
    mqtt_bridge = RedisMQTTBridge(auto_start=False)  # EXTERNAL mode
    ```
@@ -1015,11 +1015,11 @@ grep "pkill.*mosquitto" /var/log/nemo.log
 **Check**: Ensure you're looking at the correct Redis database:
 ```bash
 # Wrong - this checks DB 0 (default)
-redis-cli llen NEMO_mqtt_events
+redis-cli llen nemo_mqtt_events
 
 # Correct - this checks DB 1 (plugin uses DB 1)
-redis-cli -n 1 llen NEMO_mqtt_events
-redis-cli -n 1 lrange NEMO_mqtt_events 0 -1
+redis-cli -n 1 llen nemo_mqtt_events
+redis-cli -n 1 lrange nemo_mqtt_events 0 -1
 ```
 
 #### **Configuration Not Updating**
@@ -1034,8 +1034,8 @@ redis-cli -n 1 lrange NEMO_mqtt_events 0 -1
 
 ```bash
 # Check Redis connection and messages
-redis-cli -n 1 llen NEMO_mqtt_events
-redis-cli -n 1 lrange NEMO_mqtt_events 0 -1
+redis-cli -n 1 llen nemo_mqtt_events
+redis-cli -n 1 lrange nemo_mqtt_events 0 -1
 
 # Test MQTT broker connectivity
 mosquitto_pub -h localhost -t test -m "hello"
@@ -1053,7 +1053,7 @@ systemctl status nemo-mqtt
 3. Make your changes
 4. Add tests for new functionality
 5. Ensure all tests pass (`pytest`)
-6. Format code (`black NEMO_mqtt/` and `isort NEMO_mqtt/`)
+6. Format code (`black nemo_mqtt/` and `isort nemo_mqtt/`)
 7. Commit your changes (`git commit -m 'Add amazing feature'`)
 8. Push to the branch (`git push origin feature/amazing-feature`)
 9. Open a Pull Request

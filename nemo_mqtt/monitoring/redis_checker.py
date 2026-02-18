@@ -63,7 +63,7 @@ def check_redis_messages():
         print("✅ Connected to Redis")
         
         # Check current list length
-        list_length = r.llen('NEMO_mqtt_events')
+        list_length = r.llen('nemo_mqtt_events')
         print(f"📊 Current messages in Redis list: {list_length}")
         
         if list_length > 0:
@@ -71,7 +71,7 @@ def check_redis_messages():
             print("-" * 60)
             
             # Get the last 10 messages (without removing them)
-            messages = r.lrange('NEMO_mqtt_events', -10, -1)
+            messages = r.lrange('nemo_mqtt_events', -10, -1)
             
             for i, message in enumerate(messages, 1):
                 try:
@@ -104,17 +104,17 @@ def monitor_redis_realtime():
         print("   (Press Ctrl+C to stop)")
         print("-" * 60)
         
-        last_count = r.llen('NEMO_mqtt_events')
+        last_count = r.llen('nemo_mqtt_events')
         
         while True:
-            current_count = r.llen('NEMO_mqtt_events')
+            current_count = r.llen('nemo_mqtt_events')
             
             if current_count > last_count:
                 new_messages = current_count - last_count
                 print(f"\n🆕 {new_messages} new message(s) detected!")
                 
                 # Get the new messages without removing them
-                messages = r.lrange('NEMO_mqtt_events', -new_messages, -1)
+                messages = r.lrange('nemo_mqtt_events', -new_messages, -1)
                 for i, message in enumerate(messages, 1):
                     try:
                         event_data = json.loads(message)

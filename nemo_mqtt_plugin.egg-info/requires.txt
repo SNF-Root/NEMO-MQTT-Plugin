@@ -2,6 +2,12 @@ paho-mqtt>=1.6.1
 Django>=3.2
 redis>=4.0
 
+[NEMO]
+NEMO>=7.0.0
+
+[NEMO-CE]
+NEMO-CE>=7.0.0
+
 [dev]
 pytest>=6.0
 pytest-django>=4.0

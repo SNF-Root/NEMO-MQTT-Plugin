@@ -8,10 +8,10 @@ pip install black isort
 
 # Format with black
 echo "Running black..."
-black NEMO_mqtt/
+black nemo_mqtt/
 
 # Sort imports with isort
 echo "Running isort..."
-isort NEMO_mqtt/
+isort nemo_mqtt/
 
 echo "✅ Code formatting complete!"

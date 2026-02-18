@@ -38,18 +38,19 @@ import paho.mqtt.client as mqtt
 
 # Import Django models - Django is already set up by this point
 try:
-    from NEMO.plugins.NEMO_mqtt.models import MQTTConfiguration
-    from NEMO.plugins.NEMO_mqtt.utils import get_mqtt_config
-except ImportError:
-    # Fallback for development (package is nemo_mqtt)
     from nemo_mqtt.models import MQTTConfiguration
     from nemo_mqtt.utils import get_mqtt_config
-
-# Import the ConnectionManager
-try:
-    from NEMO.plugins.NEMO_mqtt.connection_manager import ConnectionManager
 except ImportError:
+    from NEMO.plugins.nemo_mqtt.models import MQTTConfiguration
+    from NEMO.plugins.nemo_mqtt.utils import get_mqtt_config
+
+# Import the ConnectionManager and Redis list key
+try:
     from nemo_mqtt.connection_manager import ConnectionManager
+    from nemo_mqtt.redis_publisher import EVENTS_LIST_KEY
+except ImportError:
+    from NEMO.plugins.nemo_mqtt.connection_manager import ConnectionManager
+    from NEMO.plugins.nemo_mqtt.redis_publisher import EVENTS_LIST_KEY
 
 # Configure logging
 logging.basicConfig(
@@ -1246,13 +1247,13 @@ class RedisMQTTBridge:
                     self._initialize_redis_robust()
                 
                 # 3. Check Redis list length before consuming
-                list_length = self.redis_client.llen('NEMO_mqtt_events')
+                list_length = self.redis_client.llen(EVENTS_LIST_KEY)
                 if list_length > 0:
                     print(f"🔍 [CONSUME] Processing {list_length} queued messages...")
                     logger.info(f"Found {list_length} messages in Redis queue")
                 
                 # 4. Consume events from Redis using BLPOP
-                result = self.redis_client.blpop('NEMO_mqtt_events', timeout=1)
+                result = self.redis_client.blpop(EVENTS_LIST_KEY, timeout=1)
                 
                 if result:
                     channel, event_data = result

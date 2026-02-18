@@ -32,7 +32,7 @@ if not settings.configured:
             'django.contrib.contenttypes',
             'django.contrib.sessions',
             'django.contrib.admin',
-            'NEMO_mqtt',
+            'nemo_mqtt',
         ],
         MIDDLEWARE=[
             'django.middleware.security.SecurityMiddleware',
@@ -44,7 +44,7 @@ if not settings.configured:
         ],
         SECRET_KEY='test-secret-key',
         USE_TZ=True,
-        ROOT_URLCONF='NEMO_mqtt.urls',
+        ROOT_URLCONF='nemo_mqtt.urls',
         TEMPLATES=[
             {
                 'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -74,7 +74,7 @@ if not settings.configured:
                 },
             },
             'loggers': {
-                'NEMO_mqtt': {
+                'nemo_mqtt': {
                     'handlers': ['console'],
                     'level': 'DEBUG',
                     'propagate': True,
@@ -93,7 +93,7 @@ def django_db_setup(django_db_setup, django_db_blocker):
 @pytest.fixture
 def mqtt_config():
     """Create a test MQTT configuration"""
-    from NEMO_mqtt.models import MQTTConfiguration
+    from nemo_mqtt.models import MQTTConfiguration
     return MQTTConfiguration.objects.create(
         name='Test Config',
         enabled=True,

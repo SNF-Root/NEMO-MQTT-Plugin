@@ -27,7 +27,7 @@ setup(
     url="https://github.com/SNF-Root/NEMO-MQTT-Plugin",
     packages=find_packages(),
     package_data={
-        'NEMO_mqtt': [
+        'nemo_mqtt': [
             'templates/**/*',
             'migrations/**/*',
             '*.txt',
@@ -81,7 +81,7 @@ setup(
     keywords="nemo mqtt django plugin iot real-time monitoring",
     entry_points={
         'console_scripts': [
-            'nemo-mqtt-setup=NEMO_mqtt.management.commands.setup_nemo_integration:main',
+            'nemo-mqtt-setup=nemo_mqtt.management.commands.setup_nemo_integration:main',
         ],
     },
     project_urls={

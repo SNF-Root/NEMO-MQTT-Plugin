@@ -85,7 +85,7 @@ class MQTTSignalHandler:
                 )
                 if success:
                     print(f"✅ [SIGNAL-{signal_id}] Successfully published to Redis")
-                    print(f"   📤 Message sent to Redis list 'NEMO_mqtt_events'")
+                    print(f"   📤 Message sent to Redis list 'nemo_mqtt_events'")
                     print(f"   🔄 Next: Standalone service will consume from Redis")
                     logger.info(f"Successfully published to Redis: {topic}")
                 else:

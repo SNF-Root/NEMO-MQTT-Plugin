@@ -17,7 +17,7 @@ def mqtt_monitor(request):
         mqtt_config = get_mqtt_config()
     except Exception:
         pass
-    response = render(request, 'NEMO_mqtt/monitor.html', {
+    response = render(request, 'nemo_mqtt/monitor.html', {
         'title': 'NEMO → Redis stream',
         'mqtt_config': mqtt_config,
     })

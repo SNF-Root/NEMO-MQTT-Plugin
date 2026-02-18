@@ -247,7 +247,7 @@ class HealthMonitor:
             )
             
             # Check queue length
-            queue_length = redis_client.llen('NEMO_mqtt_events')
+            queue_length = redis_client.llen('nemo_mqtt_events')
             
             # Warning if queue is too long
             warning = queue_length > 1000

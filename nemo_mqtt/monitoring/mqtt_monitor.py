@@ -116,7 +116,7 @@ class MQTTMonitor:
         while self.running:
             try:
                 # Check for new messages in the Redis list
-                message = self.redis_client.rpop('NEMO_mqtt_events')
+                message = self.redis_client.rpop('nemo_mqtt_events')
                 if message:
                     try:
                         event_data = json.loads(message)

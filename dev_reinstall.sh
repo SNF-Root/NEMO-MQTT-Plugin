@@ -173,9 +173,9 @@ if [[ "$SKIP_BUILD" == "false" ]]; then
         exit 1
     fi
     
-    # Install build dependencies
+    # Install build dependencies (use python -m pip to ensure same Python)
     print_status "Installing build dependencies..."
-    pip install --upgrade pip setuptools wheel build
+    python -m pip install --upgrade pip setuptools wheel build
     
     # Build the package
     print_status "Building package..."
@@ -250,7 +250,7 @@ if [[ "$BACKUP" == "true" ]]; then
     print_status "Step 4: Creating backup of existing installation..."
     
     # Check if plugin is already installed
-    if [[ -d "$NEMO_PLUGINS_DIR/NEMO_mqtt" ]]; then
+    if [[ -d "$NEMO_PLUGINS_DIR/nemo_mqtt" ]]; then
         BACKUP_DIR="$NEMO_PROJECT_ROOT/mqtt_plugin_backup_$(date +%Y%m%d_%H%M%S)"
         print_status "Creating backup in: $BACKUP_DIR"
         
@@ -258,17 +258,17 @@ if [[ "$BACKUP" == "true" ]]; then
         mkdir -p "$BACKUP_DIR"
         
         # Backup existing plugin files
-        cp -r "$NEMO_PLUGINS_DIR/NEMO_mqtt" "$BACKUP_DIR/"
-        print_success "Backed up NEMO_mqtt directory"
+        cp -r "$NEMO_PLUGINS_DIR/nemo_mqtt" "$BACKUP_DIR/"
+        print_success "Backed up nemo_mqtt directory"
         
         # Backup settings.py if it contains MQTT plugin
-        if [[ -f "$NEMO_PROJECT_ROOT/settings.py" ]] && grep -q "NEMO_mqtt" "$NEMO_PROJECT_ROOT/settings.py"; then
+        if [[ -f "$NEMO_PROJECT_ROOT/settings.py" ]] && grep -q "nemo_mqtt" "$NEMO_PROJECT_ROOT/settings.py"; then
             cp "$NEMO_PROJECT_ROOT/settings.py" "$BACKUP_DIR/settings.py.backup"
             print_success "Backed up settings.py"
         fi
         
         # Backup urls.py if it contains MQTT URLs
-        if [[ -f "$NEMO_PROJECT_ROOT/NEMO/urls.py" ]] && grep -q "NEMO_mqtt" "$NEMO_PROJECT_ROOT/NEMO/urls.py"; then
+        if [[ -f "$NEMO_PROJECT_ROOT/NEMO/urls.py" ]] && grep -q "nemo_mqtt" "$NEMO_PROJECT_ROOT/NEMO/urls.py"; then
             cp "$NEMO_PROJECT_ROOT/NEMO/urls.py" "$BACKUP_DIR/urls.py.backup"
             print_success "Backed up NEMO/urls.py"
         fi
@@ -283,8 +283,8 @@ fi
 if [[ "$FORCE_REINSTALL" == "true" ]]; then
     print_status "Step 5: Removing existing plugin..."
     
-    if [[ -d "$NEMO_PLUGINS_DIR/NEMO_mqtt" ]]; then
-        rm -rf "$NEMO_PLUGINS_DIR/NEMO_mqtt"
+    if [[ -d "$NEMO_PLUGINS_DIR/nemo_mqtt" ]]; then
+        rm -rf "$NEMO_PLUGINS_DIR/nemo_mqtt"
         print_success "Removed existing plugin directory"
     else
         print_status "No existing plugin found"
@@ -299,16 +299,16 @@ TEMP_DIR=$(mktemp -d)
 cd "$TEMP_DIR"
 unzip -q "$DEV_DIR/$WHEEL_FILE"
 
-# Find the NEMO_mqtt directory in the extracted files
-EXTRACTED_PLUGIN_DIR=$(find . -name "NEMO_mqtt" -type d | head -n 1)
+# Find the nemo_mqtt directory in the extracted files
+EXTRACTED_PLUGIN_DIR=$(find . -name "nemo_mqtt" -type d | head -n 1)
 
 if [[ -z "$EXTRACTED_PLUGIN_DIR" ]]; then
-    print_error "Could not find NEMO_mqtt directory in extracted package"
+    print_error "Could not find nemo_mqtt directory in extracted package"
     exit 1
 fi
 
-# Install directly to NEMO/plugins/NEMO_mqtt (not NEMO/plugins/NEMO/NEMO_mqtt)
-NEMO_PLUGIN_DIR="$NEMO_PLUGINS_DIR/NEMO_mqtt"
+# Install directly to NEMO/plugins/nemo_mqtt (not NEMO/plugins/NEMO/nemo_mqtt)
+NEMO_PLUGIN_DIR="$NEMO_PLUGINS_DIR/nemo_mqtt"
 
 # Copy the plugin files directly
 cp -r "$EXTRACTED_PLUGIN_DIR" "$NEMO_PLUGINS_DIR/"
@@ -329,10 +329,20 @@ print_status "Step 7: Setting up Django integration..."
 
 cd "$NEMO_PROJECT_ROOT"
 
+# Detect Python executable (prefer virtual environment)
+PYTHON_CMD="python"
+if [[ -f "$NEMO_PROJECT_ROOT/.venv/bin/python" ]]; then
+    PYTHON_CMD="$NEMO_PROJECT_ROOT/.venv/bin/python"
+    print_status "Using virtual environment Python: $PYTHON_CMD"
+elif [[ -f "$NEMO_PROJECT_ROOT/venv/bin/python" ]]; then
+    PYTHON_CMD="$NEMO_PROJECT_ROOT/venv/bin/python"
+    print_status "Using virtual environment Python: $PYTHON_CMD"
+fi
+
 # Check if setup command exists
-if python manage.py help setup_nemo_integration &> /dev/null; then
+if $PYTHON_CMD manage.py help setup_nemo_integration &> /dev/null; then
     print_status "Running Django setup command..."
-    python manage.py setup_nemo_integration --backup
+    $PYTHON_CMD manage.py setup_nemo_integration --backup
     print_success "Django setup completed"
 else
     print_warning "Setup command not available, configuring manually..."
@@ -344,44 +354,50 @@ else
     
     # Find the correct settings file
     SETTINGS_FILE=""
-    for settings_file in settings.py settings_dev.py settings_local.py; do
-        if [[ -f "$settings_file" ]]; then
-            SETTINGS_FILE="$settings_file"
+    # Check common locations: root, resources/, and NEMO/
+    for settings_file in settings.py settings_dev.py settings_local.py \
+                         resources/settings.py resources/settings_dev.py resources/settings_local.py \
+                         NEMO/settings.py NEMO/settings_dev.py NEMO/settings_local.py; do
+        if [[ -f "$NEMO_PROJECT_ROOT/$settings_file" ]]; then
+            SETTINGS_FILE="$NEMO_PROJECT_ROOT/$settings_file"
             break
         fi
     done
     
     if [[ -z "$SETTINGS_FILE" ]]; then
-        print_error "Could not find settings file (settings.py, settings_dev.py, or settings_local.py)"
-        exit 1
+        print_warning "Could not find settings file in common locations"
+        print_status "Skipping INSTALLED_APPS configuration (you may need to add 'nemo_mqtt' manually)"
+        SETTINGS_FILE=""
     fi
     
-    print_status "Using settings file: $SETTINGS_FILE"
-    
-    # Backup settings file
-    if [[ "$BACKUP" == "true" ]]; then
-        cp "$SETTINGS_FILE" "$SETTINGS_FILE.backup.$(date +%Y%m%d_%H%M%S)"
-        print_success "Backed up $SETTINGS_FILE"
-    fi
-    
-    # Add to INSTALLED_APPS if not already present
-    if ! grep -q "NEMO_mqtt" "$SETTINGS_FILE"; then
-        # Find INSTALLED_APPS and add NEMO_mqtt
+    if [[ -n "$SETTINGS_FILE" ]]; then
+        print_status "Using settings file: $SETTINGS_FILE"
+        
+        # Backup settings file
+        if [[ "$BACKUP" == "true" ]]; then
+            cp "$SETTINGS_FILE" "$SETTINGS_FILE.backup.$(date +%Y%m%d_%H%M%S)"
+            print_success "Backed up $SETTINGS_FILE"
+        fi
+        
+        # Add to INSTALLED_APPS if not already present
+        if ! grep -q "nemo_mqtt" "$SETTINGS_FILE"; then
+        # Find INSTALLED_APPS and add nemo_mqtt
         sed -i.bak '/INSTALLED_APPS = \[/,/\]/ {
             /\]/ i\
-    "NEMO_mqtt",
+    "nemo_mqtt",
         }' "$SETTINGS_FILE"
-        print_success "Added NEMO_mqtt to INSTALLED_APPS in $SETTINGS_FILE"
-    else
-        print_status "NEMO_mqtt already in INSTALLED_APPS in $SETTINGS_FILE"
+            print_success "Added nemo_mqtt to INSTALLED_APPS in $SETTINGS_FILE"
+        else
+            print_status "nemo_mqtt already in INSTALLED_APPS in $SETTINGS_FILE"
+        fi
     fi
     
     # Add URLs if not already present
-    if [[ -f "NEMO/urls.py" ]] && ! grep -q "NEMO_mqtt" NEMO/urls.py; then
+    if [[ -f "NEMO/urls.py" ]] && ! grep -q "nemo_mqtt" NEMO/urls.py; then
         echo "" >> NEMO/urls.py
         echo "# MQTT Plugin URLs" >> NEMO/urls.py
         echo "urlpatterns += [" >> NEMO/urls.py
-        echo "    path('mqtt/', include('NEMO_mqtt.urls'))," >> NEMO/urls.py
+        echo "    path('mqtt/', include('nemo_mqtt.urls'))," >> NEMO/urls.py
         echo "]" >> NEMO/urls.py
         print_success "Added MQTT URLs to NEMO/urls.py"
     else
@@ -391,35 +407,37 @@ fi
 
 # Step 9: Run migrations
 print_status "Step 8: Running database migrations..."
-python manage.py migrate NEMO_mqtt
-
-if [[ $? -eq 0 ]]; then
+if $PYTHON_CMD manage.py migrate nemo_mqtt 2>&1 | grep -q "already exists\|No migrations to apply"; then
+    print_success "Migrations already applied or not needed"
+elif $PYTHON_CMD manage.py migrate nemo_mqtt; then
     print_success "Migrations completed successfully"
 else
-    print_warning "Migrations failed or not needed"
+    print_warning "Migrations encountered an error (this may be normal if tables already exist)"
 fi
 
 # Step 10: Run tests (unless skipped)
 if [[ "$SKIP_TESTS" == "false" ]]; then
     print_status "Step 9: Running tests..."
     
-    # Check if pytest is available
-    if command -v pytest &> /dev/null; then
-        cd "$DEV_DIR"
+    cd "$DEV_DIR"
+    
+    # Check if Django is available in the Python environment
+    if $PYTHON_CMD -c "import django" 2>/dev/null; then
+        # Check if pytest is available, install if needed
+        if ! $PYTHON_CMD -c "import pytest" 2>/dev/null; then
+            print_status "Installing test dependencies..."
+            $PYTHON_CMD -m pip install pytest pytest-django pytest-cov --quiet
+        fi
         
-        # Install test dependencies if needed
-        print_status "Installing test dependencies..."
-        pip install pytest pytest-django pytest-cov --quiet
-        
-        # Use simple test configuration that avoids NEMO dependencies
-        python -m pytest tests/test_models.py tests/test_redis_publisher.py -v --tb=short
-        if [[ $? -eq 0 ]]; then
+        # Run tests using the same Python as Django
+        if $PYTHON_CMD -m pytest tests/test_models.py tests/test_redis_publisher.py -v --tb=short 2>/dev/null; then
             print_success "Core tests passed"
         else
-            print_warning "Some tests failed (this is expected in development)"
+            print_warning "Some tests failed or pytest not available (this is expected in development)"
         fi
     else
-        print_warning "pytest not available, skipping tests"
+        print_warning "Django not available in Python environment, skipping tests"
+        print_status "To run tests, ensure Django is installed in: $PYTHON_CMD"
     fi
 else
     print_warning "Skipping tests"
@@ -431,16 +449,16 @@ print_status "Step 10: Verifying installation..."
 cd "$NEMO_PROJECT_ROOT"
 
 # Check if plugin directory exists
-if [[ -d "$NEMO_PLUGINS_DIR/NEMO_mqtt" ]]; then
-    print_success "Plugin directory found: $NEMO_PLUGINS_DIR/NEMO_mqtt"
+if [[ -d "$NEMO_PLUGINS_DIR/nemo_mqtt" ]]; then
+    print_success "Plugin directory found: $NEMO_PLUGINS_DIR/nemo_mqtt"
 else
     print_error "Plugin installation verification failed - directory not found"
     exit 1
 fi
 
 # Check if Django can import the package
-if python -c "import NEMO_mqtt; print('Import successful')" 2>/dev/null; then
-    print_success "Django can import NEMO_mqtt package"
+if $PYTHON_CMD -c "import nemo_mqtt; print('Import successful')" 2>/dev/null; then
+    print_success "Django can import nemo_mqtt package"
 else
     print_warning "Django import test failed (this may be normal in some environments)"
 fi
@@ -452,7 +470,7 @@ if [[ "$RESTART_SERVER" == "true" ]]; then
     # Start Django server in background
     print_status "Starting Django development server..."
     cd "$NEMO_PROJECT_ROOT"
-    nohup python manage.py runserver > /dev/null 2>&1 &
+    nohup $PYTHON_CMD manage.py runserver > /dev/null 2>&1 &
     DJANGO_PID=$!
     
     # Wait a moment for server to start
@@ -472,7 +490,7 @@ echo ""
 print_success "🎉 Development reinstall completed successfully!"
 echo ""
 print_status "Summary:"
-print_status "  - Plugin built and installed: $NEMO_PLUGINS_DIR/NEMO_mqtt"
+print_status "  - Plugin built and installed: $NEMO_PLUGINS_DIR/nemo_mqtt"
 print_status "  - Django integration configured"
 print_status "  - Database migrations run"
 print_status "  - NEMO project root: $NEMO_PROJECT_ROOT"

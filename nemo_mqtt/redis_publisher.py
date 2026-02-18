@@ -13,8 +13,9 @@ from typing import Optional, Dict, Any
 
 logger = logging.getLogger(__name__)
 
-# Redis list for monitor UI (copy of recent publishes; bridge still consumes NEMO_mqtt_events only)
-MONITOR_LIST_KEY = 'NEMO_mqtt_monitor'
+# Redis list keys (use lowercase for consistency with package name)
+EVENTS_LIST_KEY = 'nemo_mqtt_events'
+MONITOR_LIST_KEY = 'nemo_mqtt_monitor'
 MONITOR_LIST_MAXLEN = 100
 
 class RedisMQTTPublisher:
@@ -101,9 +102,9 @@ class RedisMQTTPublisher:
             print(f"   Event: {json.dumps(event, indent=2)}")
             
             # Publish to Redis list (consumed by bridge)
-            result = self.redis_client.lpush('NEMO_mqtt_events', json.dumps(event))
+            result = self.redis_client.lpush(EVENTS_LIST_KEY, json.dumps(event))
             print(f"📤 [REDIS-{redis_id}] Redis lpush successful: {topic} (list length: {result})")
-            print(f"   📤 Message added to Redis list 'NEMO_mqtt_events'")
+            print(f"   📤 Message added to Redis list '{EVENTS_LIST_KEY}'")
             print(f"   🔄 Next: Standalone service will consume this message")
             logger.debug(f"Published event to Redis: {topic}")
 
@@ -112,8 +113,8 @@ class RedisMQTTPublisher:
             self.redis_client.ltrim(MONITOR_LIST_KEY, 0, MONITOR_LIST_MAXLEN - 1)
 
             # Verify the message was added
-            list_length = self.redis_client.llen('NEMO_mqtt_events')
-            print(f"🔍 [REDIS-{redis_id}] Redis list 'NEMO_mqtt_events' now has {list_length} messages")
+            list_length = self.redis_client.llen(EVENTS_LIST_KEY)
+            print(f"🔍 [REDIS-{redis_id}] Redis list '{EVENTS_LIST_KEY}' now has {list_length} messages")
             print(f"   ⏳ Waiting for standalone service to consume...")
 
             return True
