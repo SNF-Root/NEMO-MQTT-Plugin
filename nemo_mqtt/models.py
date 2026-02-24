@@ -132,11 +132,9 @@ class MQTTEventFilter(models.Model):
 def clear_mqtt_config_cache_on_save(sender, instance, **kwargs):
     """Clear the MQTT configuration cache when a configuration is saved"""
     cache.delete('mqtt_active_config')
-    print(f"🔄 MQTT configuration cache cleared after saving: {instance.name}")
 
 
 @receiver(post_delete, sender=MQTTConfiguration)
 def clear_mqtt_config_cache_on_delete(sender, instance, **kwargs):
     """Clear the MQTT configuration cache when a configuration is deleted"""
     cache.delete('mqtt_active_config')
-    print(f"🔄 MQTT configuration cache cleared after deleting: {instance.name}")

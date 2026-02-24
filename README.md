@@ -42,7 +42,7 @@ A comprehensive Django plugin that provides MQTT integration for NEMO tool usage
 - **QoS Settings**: Quality of Service level configuration
 
 ### **Security & Reliability**
-- **SSL/TLS Support**: Full TLS/SSL encryption with certificate management
+- **SSL/TLS Support**: Full TLS/SSL encryption (see [docs/TLS.md](docs/TLS.md) for setup)
 - **Authentication**: Username/password and certificate-based authentication
 - **Message Logging**: Complete audit trail of all MQTT messages
 - **Error Handling**: Comprehensive error handling and recovery
@@ -1029,6 +1029,15 @@ redis-cli -n 1 lrange nemo_mqtt_events 0 -1
 1. Restarting the MQTT service
 2. Or wait for automatic reconnection (happens on connection loss)
 3. Check debug output shows new broker:port
+
+### Debug & Dev Scripts
+
+Scripts in `scripts/` for development and troubleshooting:
+
+- **`scripts/debug_tls.py`** – Test TLS configuration and certificates
+- **`scripts/check_bridge_status.py`** – Diagnose Redis-MQTT bridge (run from NEMO project root)
+- **`scripts/fix_ca_certificate.py`** – Generate CA cert with proper Key Usage
+- **`scripts/dev_reinstall.sh`** – Reinstall plugin into NEMO (development)
 
 ### Debug Commands
 

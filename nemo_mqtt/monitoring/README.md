@@ -2,27 +2,34 @@
 
 This directory contains monitoring and debugging tools for the NEMO MQTT plugin.
 
-## 🚀 Quick Start
+## Quick Start
 
-From the NEMO project root directory, run:
+From the NEMO project root directory:
 
 ```bash
 # Full MQTT + Redis monitoring
-./monitor_mqtt.sh mqtt
+python -m nemo_mqtt.monitoring.mqtt_monitor
 
 # Redis-only checking
-./monitor_mqtt.sh redis
+python -m nemo_mqtt.monitoring.redis_checker
 
 # Test MQTT signals
-./monitor_mqtt.sh test
+python manage.py test_mqtt_api
 ```
 
-## 📁 Files
+Or use the run_monitor runner (requires manage.py in cwd):
 
-- **`mqtt_monitor.py`** - Full monitoring tool that watches both Redis and MQTT
-- **`redis_checker.py`** - Simple Redis message checker
-- **`run_monitor.py`** - Python runner with virtual environment detection
-- **`monitor_mqtt.sh`** - Shell script wrapper for easy access
+```bash
+python -m nemo_mqtt.monitoring.run_monitor mqtt
+python -m nemo_mqtt.monitoring.run_monitor redis
+python -m nemo_mqtt.monitoring.run_monitor test
+```
+
+## Files
+
+- **`mqtt_monitor.py`** - Full monitoring (Redis + MQTT)
+- **`redis_checker.py`** - Redis message checker
+- **`run_monitor.py`** - Runner with venv detection
 
 ## 🌐 Web monitor (Redis stream)
 

@@ -12,10 +12,10 @@ from pathlib import Path
 
 def find_venv():
     """Find the virtual environment"""
-    # Look for venv in common locations
+    cwd = Path.cwd()
     possible_paths = [
-        Path(__file__).parent.parent.parent.parent.parent / "venv",
-        Path(__file__).parent.parent.parent.parent.parent / ".venv",
+        cwd / "venv",
+        cwd / ".venv",
         Path.home() / ".virtualenvs" / "nemo-ce",
     ]
     
@@ -54,8 +54,7 @@ def run_script(script_name, args=None):
     print("=" * 60)
     
     try:
-        # Run the script
-        result = subprocess.run(cmd, cwd=script_dir.parent.parent.parent.parent.parent)
+        result = subprocess.run(cmd, cwd=Path.cwd())
         return result.returncode == 0
     except KeyboardInterrupt:
         print("\n👋 Interrupted by user")
@@ -103,7 +102,21 @@ def main():
     elif args.tool == "redis":
         success = run_script("redis_checker.py", args.args)
     elif args.tool == "test":
-        success = run_script("../test_mqtt.py", args.args)
+        python_exe = get_python_executable()
+        cmd = [python_exe, "manage.py", "test_mqtt_api"]
+        if args.args:
+            cmd.extend(args.args)
+        print(f"🚀 Running: {' '.join(cmd)}")
+        print("=" * 60)
+        try:
+            result = subprocess.run(cmd, cwd=Path.cwd())
+            success = result.returncode == 0
+        except KeyboardInterrupt:
+            print("\n👋 Interrupted by user")
+            success = True
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            success = False
     else:
         print(f"❌ Unknown tool: {args.tool}")
         return 1

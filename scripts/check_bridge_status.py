@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
 Quick diagnostic script to check Redis-MQTT Bridge status
+
+Usage (from project root or NEMO project root):
+    python scripts/check_bridge_status.py
 """
 import redis
 import os
 import sys
 
-# Add Django project to path
+# Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Set Django settings
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
 
 import django
@@ -22,20 +24,21 @@ print("=" * 60)
 # Check Redis connection
 print("\n1. Checking Redis connection...")
 try:
-    r = redis.Redis(host='localhost', port=6379, db=1)
+    r = redis.Redis(host='171.67.89.14', port=1886, db=1)
     r.ping()
     print("   ✅ Redis is accessible")
-    
+
     # Check queue length
     queue_len = r.llen('nemo_mqtt_events')
     print(f"   📊 Redis queue length: {queue_len} messages")
-    
+
     if queue_len > 0:
         print(f"   ⚠️  WARNING: {queue_len} messages waiting to be consumed!")
         print("   🔍 Peeking at first message:")
-        first_msg = r.lindex('nemo_mqtt_events', -1)  # Get oldest message
-        print(f"      {first_msg[:200]}...")
-    
+        first_msg = r.lindex('nemo_mqtt_events', -1)
+        if first_msg:
+            print(f"      {str(first_msg)[:200]}...")
+
 except Exception as e:
     print(f"   ❌ Redis error: {e}")
 
@@ -47,12 +50,12 @@ if os.path.exists(lock_path):
         pid = f.read().strip()
     print(f"   ✅ Lock file exists: {lock_path}")
     print(f"   📌 PID: {pid}")
-    
+
     # Check if process is running
     try:
         os.kill(int(pid), 0)
         print(f"   ✅ Process {pid} is running")
-    except OSError:
+    except (OSError, ValueError):
         print(f"   ❌ Process {pid} is NOT running (stale lock)")
 else:
     print(f"   ❌ No lock file found")
@@ -76,7 +79,7 @@ except Exception as e:
 print("\n4. Checking bridge instance...")
 try:
     from nemo_mqtt.redis_mqtt_bridge import get_mqtt_bridge, _mqtt_bridge_instance
-    
+
     if _mqtt_bridge_instance is None:
         print("   ❌ Bridge instance is None - NOT INITIALIZED!")
         print("   🔧 Trying to initialize...")
@@ -88,7 +91,7 @@ try:
         print(f"   ✅ Bridge instance exists")
         print(f"   🏃 Running: {bridge.running}")
         print(f"   📊 Connection count: {bridge.connection_count}")
-        
+
 except Exception as e:
     print(f"   ❌ Bridge error: {e}")
     import traceback
@@ -97,4 +100,3 @@ except Exception as e:
 print("\n" + "=" * 60)
 print("Diagnostic complete")
 print("=" * 60)
-

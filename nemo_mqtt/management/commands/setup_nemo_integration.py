@@ -1,19 +1,21 @@
 """
 Django management command to set up NEMO integration for the MQTT plugin.
 
-This command automatically configures NEMO settings and URLs for the MQTT plugin.
+Configures NEMO settings and URLs. Use --install-package to also install the
+plugin via pip (when developing or installing from source).
 """
 
 from django.core.management.base import BaseCommand, CommandError
 from django.conf import settings
-from django.urls import include, path
 import os
 import re
+import subprocess
+import sys
 from pathlib import Path
 
 
 class Command(BaseCommand):
-    help = 'Set up NEMO integration for the MQTT plugin'
+    help = 'Set up NEMO integration for the MQTT plugin (configures settings and URLs)'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -26,15 +28,24 @@ class Command(BaseCommand):
             action='store_true',
             help='Create backup files before modifying',
         )
+        parser.add_argument(
+            '--install-package',
+            action='store_true',
+            help='Install the plugin via pip first (pip install -e .)',
+        )
 
     def handle(self, *args, **options):
         nemo_path = options.get('nemo_path') or os.getcwd()
         create_backup = options.get('backup', False)
-        
+        install_package = options.get('install_package', False)
+
         self.stdout.write(
             self.style.SUCCESS(f'🔧 Setting up NEMO MQTT Plugin integration in: {nemo_path}')
         )
-        
+
+        if install_package:
+            self._install_package()
+
         # Check if we're in a NEMO installation
         if not self._is_nemo_installation(nemo_path):
             raise CommandError(f'❌ {nemo_path} does not appear to be a NEMO installation')
@@ -58,7 +69,21 @@ class Command(BaseCommand):
         self.stdout.write('\n📋 Next steps:')
         self.stdout.write('1. Run migrations: python manage.py migrate nemo_mqtt')
         self.stdout.write('2. Start NEMO: python manage.py runserver')
-        self.stdout.write('3. Configure MQTT in Django admin')
+        self.stdout.write('3. Configure MQTT at /customization/mqtt/')
+
+    def _install_package(self):
+        """Install the plugin via pip in editable mode"""
+        plugin_dir = Path(__file__).resolve().parent.parent.parent.parent
+        self.stdout.write('📦 Installing Python package...')
+        try:
+            subprocess.run(
+                [sys.executable, '-m', 'pip', 'install', '-e', str(plugin_dir)],
+                check=True,
+                capture_output=True,
+            )
+            self.stdout.write(self.style.SUCCESS('✅ Package installed'))
+        except subprocess.CalledProcessError as e:
+            raise CommandError(f'pip install failed: {e.stderr.decode() if e.stderr else e}')
 
     def _is_nemo_installation(self, path):
         """Check if the path contains a NEMO installation"""

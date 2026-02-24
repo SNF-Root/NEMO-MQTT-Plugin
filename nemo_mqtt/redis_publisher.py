@@ -47,7 +47,6 @@ class RedisMQTTPublisher:
             except Exception as e:
                 logger.warning(f"Redis connection attempt {attempt + 1}/{max_retries} failed: {e}")
                 if attempt < max_retries - 1:
-                    import time
                     time.sleep(retry_delay)
                     retry_delay *= 2  # Exponential backoff
                 else:
@@ -67,29 +66,23 @@ class RedisMQTTPublisher:
         Returns:
             bool: True if published successfully, False otherwise
         """
-        import uuid
-        redis_id = str(uuid.uuid4())[:8]
-        
-        print(f"\n🔍 [REDIS-{redis_id}] Starting Redis publish process")
-        print(f"   Topic: {topic}")
-        print(f"   QoS: {qos}")
-        print(f"   Retain: {retain}")
-        print(f"   Payload: {payload[:100]}{'...' if len(payload) > 100 else ''}")
-        
         if not self.redis_client:
-            print(f"❌ [REDIS-{redis_id}] Redis client not available, attempting to reconnect...")
             logger.warning("Redis client not available, attempting to reconnect...")
             self._initialize_redis()
             if not self.redis_client:
-                print(f"❌ [REDIS-{redis_id}] Redis reconnection failed")
                 logger.error("Redis reconnection failed")
                 return False
-        
+
         try:
-            # Test Redis connection first
             self.redis_client.ping()
-            print(f"✅ [REDIS-{redis_id}] Redis connection test successful")
-            
+        except Exception as e:
+            logger.warning("Redis ping failed, reinitializing: %s", e)
+            self._initialize_redis()
+            if not self.redis_client:
+                logger.error("Redis reconnection failed")
+                return False
+
+        try:
             event = {
                 'topic': topic,
                 'payload': payload,
@@ -97,31 +90,19 @@ class RedisMQTTPublisher:
                 'retain': retain,
                 'timestamp': time.time()
             }
-            
-            print(f"🔍 [REDIS-{redis_id}] Event object created, pushing to Redis list...")
-            print(f"   Event: {json.dumps(event, indent=2)}")
-            
+
             # Publish to Redis list (consumed by bridge)
-            result = self.redis_client.lpush(EVENTS_LIST_KEY, json.dumps(event))
-            print(f"📤 [REDIS-{redis_id}] Redis lpush successful: {topic} (list length: {result})")
-            print(f"   📤 Message added to Redis list '{EVENTS_LIST_KEY}'")
-            print(f"   🔄 Next: Standalone service will consume this message")
-            logger.debug(f"Published event to Redis: {topic}")
+            self.redis_client.lpush(EVENTS_LIST_KEY, json.dumps(event))
+            logger.debug("Published event to Redis: topic=%s qos=%s", topic, qos)
 
             # Copy to monitor list for web UI (stream of what NEMO publishes)
             self.redis_client.lpush(MONITOR_LIST_KEY, json.dumps(event))
             self.redis_client.ltrim(MONITOR_LIST_KEY, 0, MONITOR_LIST_MAXLEN - 1)
 
-            # Verify the message was added
-            list_length = self.redis_client.llen(EVENTS_LIST_KEY)
-            print(f"🔍 [REDIS-{redis_id}] Redis list '{EVENTS_LIST_KEY}' now has {list_length} messages")
-            print(f"   ⏳ Waiting for standalone service to consume...")
-
             return True
-            
+
         except Exception as e:
-            print(f"❌ [REDIS-{redis_id}] Failed to publish event to Redis: {e}")
-            logger.error(f"Failed to publish event to Redis: {e}")
+            logger.error("Failed to publish event to Redis: %s", e)
             return False
     
     def is_available(self) -> bool:
