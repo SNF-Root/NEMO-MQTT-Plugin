@@ -24,7 +24,7 @@ print("=" * 60)
 # Check Redis connection
 print("\n1. Checking Redis connection...")
 try:
-    r = redis.Redis(host='171.67.89.14', port=1886, db=1)
+    r = redis.Redis(host='localhost', port=6379, db=1)
     r.ping()
     print("   ✅ Redis is accessible")
 
