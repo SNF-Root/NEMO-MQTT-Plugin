@@ -596,9 +596,9 @@ console.log('=== Main JavaScript loaded ===');
                 <strong>Configuration:</strong> {{ mqtt_config.name }}
             </div>
             <div class="col-md-6">
-                <strong>TLS:</strong> 
-                {% if mqtt_config.use_tls %}
-                    <span class="badge badge-success">Enabled ({{ mqtt_config.tls_version }})</span>
+                <strong>HMAC:</strong> 
+                {% if mqtt_config.use_hmac %}
+                    <span class="badge badge-success">Enabled ({{ mqtt_config.hmac_algorithm }})</span>
                 {% else %}
                     <span class="badge badge-warning">Disabled</span>
                 {% endif %}<br>

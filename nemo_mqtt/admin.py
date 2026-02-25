@@ -7,8 +7,8 @@ from .models import MQTTConfiguration, MQTTMessageLog, MQTTEventFilter
 
 @admin.register(MQTTConfiguration)
 class MQTTConfigurationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'enabled', 'broker_host', 'broker_port', 'use_tls', 'connection_status', 'created_at']
-    list_filter = ['enabled', 'use_tls', 'log_level', 'created_at']
+    list_display = ['name', 'enabled', 'broker_host', 'broker_port', 'use_hmac', 'connection_status', 'created_at']
+    list_filter = ['enabled', 'use_hmac', 'log_level', 'created_at']
     search_fields = ['name', 'broker_host', 'client_id']
     readonly_fields = ['created_at', 'updated_at', 'connection_status']
     
@@ -23,8 +23,8 @@ class MQTTConfigurationAdmin(admin.ModelAdmin):
             'fields': ('username', 'password'),
             'classes': ('collapse',)
         }),
-        ('TLS/SSL Security', {
-            'fields': ('use_tls', 'tls_version', 'ca_cert_path', 'client_cert_path', 'client_key_path', 'ca_cert_content', 'client_cert_content', 'client_key_content', 'insecure'),
+        ('HMAC Message Authentication', {
+            'fields': ('use_hmac', 'hmac_secret_key', 'hmac_algorithm'),
             'classes': ('collapse',)
         }),
         ('Message Settings', {

@@ -60,7 +60,7 @@
                        class="form-control" 
                        value="{{ config.broker_port }}">
             </div>
-            <div class="col-md-5 help-block light-grey">The port number of the MQTT broker (usually 1883 for non-TLS, 8883 for TLS).</div>
+            <div class="col-md-5 help-block light-grey">The port number of the MQTT broker (typically 1883).</div>
         </div>
         
         <div class="form-group">
@@ -87,38 +87,76 @@
             <div class="col-md-5 help-block light-grey">Unique identifier for this NEMO instance on the MQTT broker.</div>
         </div>
         
-        <!-- SSL/TLS Security -->
-        <div class="customization-separation"></div>
-        <h3 class="customization-section-title">SSL/TLS Security</h3>
+        <div class="form-group">
+            <label class="control-label col-md-3" for="mqtt_broker_username">Broker username</label>
+            <div class="col-md-4">
+                <input type="text" 
+                       id="mqtt_broker_username" 
+                       name="mqtt_broker_username" 
+                       class="form-control" 
+                       value="{{ config.username|default:'' }}"
+                       placeholder="e.g. nemo">
+            </div>
+            <div class="col-md-5 help-block light-grey">Username sent in the MQTT CONNECT packet. Set with broker password to disable anonymous access.</div>
+        </div>
         
         <div class="form-group">
-            <label class="control-label col-md-3">Use SSL/TLS</label>
+            <label class="control-label col-md-3" for="mqtt_broker_password">Broker password</label>
+            <div class="col-md-4">
+                <input type="password" 
+                       id="mqtt_broker_password" 
+                       name="mqtt_broker_password" 
+                       class="form-control" 
+                       placeholder="Leave blank to keep current password"
+                       autocomplete="off">
+            </div>
+            <div class="col-md-5 help-block light-grey">Password for broker authentication. Leave blank to keep existing password.</div>
+        </div>
+        
+        <!-- HMAC Message Authentication -->
+        <div class="customization-separation"></div>
+        <h3 class="customization-section-title">HMAC Message Authentication</h3>
+        <p class="help-block light-grey">Sign payloads with HMAC so subscribers can verify authenticity and integrity. Uses a shared secret; transport remains plain TCP.</p>
+        
+        <div class="form-group">
+            <label class="control-label col-md-3">Use HMAC signing</label>
             <div class="col-md-9">
                 <div class="checkbox">
                     <label>
                         <input type="checkbox" 
-                               id="mqtt_use_tls" 
-                               name="mqtt_use_tls" 
-                               {% if config.use_tls %}checked{% endif %} 
+                               id="mqtt_use_hmac" 
+                               name="mqtt_use_hmac" 
+                               {% if config.use_hmac %}checked{% endif %} 
                                value="enabled"
-                               onchange="toggleSslFields()">
-                        Enable SSL/TLS encryption for MQTT connection
+                               onchange="toggleHmacFields()">
+                        Sign MQTT payloads with HMAC
                     </label>
                 </div>
             </div>
         </div>
         
-        <div id="ssl-fields"{% if not config.use_tls %} style="display: none;"{% endif %}>
+        <div id="hmac-fields"{% if not config.use_hmac %} style="display: none;"{% endif %}>
             <div class="form-group">
-                <label class="control-label col-md-3" for="mqtt_ca_cert">CA Certificate</label>
+                <label class="control-label col-md-3" for="mqtt_hmac_secret_key">HMAC secret key</label>
                 <div class="col-md-9">
-                    <textarea id="mqtt_ca_cert" 
-                              name="mqtt_ca_cert" 
-                              class="form-control" 
-                              rows="4" 
-                              placeholder="-----BEGIN CERTIFICATE-----&#10;Your CA certificate content here...&#10;-----END CERTIFICATE-----">{{ config.ca_cert_content|default:"" }}</textarea>
+                    <input type="password" 
+                           id="mqtt_hmac_secret_key" 
+                           name="mqtt_hmac_secret_key" 
+                           class="form-control" 
+                           placeholder="Shared secret (leave blank to keep current)"
+                           autocomplete="off">
                 </div>
-                <div class="col-md-12 help-block light-grey"></div>
+                <div class="col-md-12 help-block light-grey">Same secret must be configured on subscribers to verify messages. Leave blank when editing to keep existing key.</div>
+            </div>
+            <div class="form-group">
+                <label class="control-label col-md-3" for="mqtt_hmac_algorithm">Hash algorithm</label>
+                <div class="col-md-4">
+                    <select id="mqtt_hmac_algorithm" name="mqtt_hmac_algorithm" class="form-control">
+                        <option value="sha256" {% if config.hmac_algorithm == 'sha256' %}selected{% endif %}>SHA-256</option>
+                        <option value="sha384" {% if config.hmac_algorithm == 'sha384' %}selected{% endif %}>SHA-384</option>
+                        <option value="sha512" {% if config.hmac_algorithm == 'sha512' %}selected{% endif %}>SHA-512</option>
+                    </select>
+                </div>
             </div>
         </div>
         
@@ -312,14 +350,14 @@
 </div>
 
 <script>
-function toggleSslFields() {
-    var sslCheckbox = document.getElementById('mqtt_use_tls');
-    var sslFields = document.getElementById('ssl-fields');
+function toggleHmacFields() {
+    var hmacCheckbox = document.getElementById('mqtt_use_hmac');
+    var hmacFields = document.getElementById('hmac-fields');
     
-    if (sslCheckbox.checked) {
-        sslFields.style.display = 'block';
+    if (hmacCheckbox.checked) {
+        hmacFields.style.display = 'block';
     } else {
-        sslFields.style.display = 'none';
+        hmacFields.style.display = 'none';
     }
 }
 </script>

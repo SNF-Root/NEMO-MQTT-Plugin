@@ -97,14 +97,12 @@ The plugin uses **`UsageEvent.post_save`** as the **single source of truth** for
 
 | NEMO action | UsageEvent state | Events published to Redis |
 |-------------|------------------|----------------------------|
-| User enables tool (starts use) | `end` is `None` | `tool_usage_start` + `tool_enabled` |
-| User disables tool (stops use)  | `end` is set     | `tool_usage_end` + `tool_disabled` |
+| User enables tool (starts use)  | `end` is `None` | `tool_enabled` only |
+| User disables tool (stops use)  | `end` is set    | `tool_disabled` only |
 
 **Topics published:**
 
-- **By tool name (usage lifecycle):**  
-  `nemo/tools/{tool_name}/start`, `nemo/tools/{tool_name}/end`
-- **By tool id (enable/disable semantics):**  
+- **By tool id (enable/disable):**  
   `nemo/tools/{tool_id}/enabled`, `nemo/tools/{tool_id}/disabled`
 
 All of these are emitted from the same **UsageEvent** handler, so you get consistent, instantaneous updates (same request as the NEMO enable/disable action).
@@ -119,29 +117,21 @@ All of these are emitted from the same **UsageEvent** handler, so you get consis
 2. **Enable/disable a tool** in the NEMO web interface (e.g. “Enable” to start use, “Disable” / “Stop” to end use).
 
 3. **Watch for messages**:
-   - On **enable**: `nemo/tools/{name}/start` and `nemo/tools/{id}/enabled`
-   - On **disable**: `nemo/tools/{name}/end` and `nemo/tools/{id}/disabled`
+   - On **enable**: `nemo/tools/{id}/enabled` only
+   - On **disable**: `nemo/tools/{id}/disabled` only
    - MQTT will show the same if the bridge is running.
 
 ## 🔍 What to Look For
 
-When you **enable** a tool (start use), you should see two Redis (and MQTT) messages:
+When you **enable** a tool (start use), you should see:
 
-**1. Start / usage lifecycle**
-- Topic: `nemo/tools/Fiji2/start` (example tool name)
-- Payload includes: `"event": "tool_usage_start"`, `tool_id`, `tool_name`, `user_name`, `start_time`
-
-**2. Enabled (semantic alias)**
+**Enabled**
 - Topic: `nemo/tools/2/enabled` (example tool id)
 - Payload includes: `"event": "tool_enabled"`, `tool_id`, `tool_name`, `usage_id`, `user_name`, `start_time`
 
 When you **disable** a tool (stop use), you should see:
 
-**1. End / usage lifecycle**
-- Topic: `nemo/tools/Fiji2/end`
-- Payload includes: `"event": "tool_usage_end"`, `start_time`, `end_time`, `user_name`
-
-**2. Disabled (semantic alias)**
+**Disabled**
 - Topic: `nemo/tools/2/disabled`
 - Payload includes: `"event": "tool_disabled"`, `tool_id`, `tool_name`, `usage_id`, `user_name`, `end_time`
 

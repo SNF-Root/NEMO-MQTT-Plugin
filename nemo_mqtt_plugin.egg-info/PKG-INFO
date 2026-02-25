@@ -102,8 +102,8 @@ A comprehensive Django plugin that provides MQTT integration for NEMO tool usage
 - **QoS Settings**: Quality of Service level configuration
 
 ### **Security & Reliability**
-- **SSL/TLS Support**: Full TLS/SSL encryption (see [docs/TLS.md](docs/TLS.md) for setup)
-- **Authentication**: Username/password and certificate-based authentication
+- **HMAC Message Authentication**: Sign payloads with HMAC for authenticity and integrity (see [docs/HMAC.md](docs/HMAC.md))
+- **Authentication**: Username/password for broker; shared secret for message signing
 - **Message Logging**: Complete audit trail of all MQTT messages
 - **Error Handling**: Comprehensive error handling and recovery
 - **Connection Management**: Automatic connection health monitoring
@@ -268,10 +268,11 @@ Configure MQTT settings through the Django customization interface at `/customiz
 #### **Authentication**
 - **Username**: MQTT broker username
 - **Password**: MQTT broker password
-- **Use TLS/SSL**: Enable secure connections
+- **Use HMAC signing**: Sign MQTT payloads for authenticity and integrity
 
-#### **TLS/SSL Security**
-- **TLS Version**: TLS version (1.0, 1.1, 1.2, 1.3)
+#### **HMAC Message Authentication**
+- **HMAC secret key**: Shared secret for signing (subscribers use same key to verify)
+- **Hash algorithm**: SHA-256, SHA-384, or SHA-512
 - **CA Certificate**: Certificate Authority certificate (PEM format)
 - **Client Certificate**: Client certificate (PEM format)
 - **Client Key**: Client private key (PEM format)
@@ -353,7 +354,7 @@ redis.Redis(
 
 #### **Port Management**
 - **Default Port**: 1883 (standard MQTT port)
-- **TLS Port**: 8883 (for secure connections)
+- **Broker port**: Typically 1883 (plain TCP)
 - **AUTO Mode**: Starts Mosquitto on configured port
 - **EXTERNAL Mode**: Connects to existing broker on configured port
 
@@ -567,7 +568,7 @@ The NEMO MQTT Plugin uses a sophisticated multi-layered architecture designed fo
 │ • Tool Events   │    │ • Reliable   │    │ • Auto-reconnect │
 │ • Usage Events  │    │   Delivery   │    │ • Health Monitor │
 │ • Area Events   │    │ • Persistence│    │ • Error Handling │
-│ • Reservations  │    │ • Ordering   │    │ • TLS Support    │
+│ • Reservations  │    │ • Ordering   │    │ • HMAC signing  │
 └─────────────────┘    └──────────────┘    └──────────────────┘
 ```
 
@@ -594,7 +595,7 @@ The NEMO MQTT Plugin uses a sophisticated multi-layered architecture designed fo
 
 #### 4. **MQTT Broker Integration**
 - **Protocol Support**: Full MQTT 3.1.1 and 5.0 support
-- **Security**: TLS/SSL encryption and authentication
+- **Security**: HMAC message authentication; optional broker username/password
 - **QoS Levels**: Configurable Quality of Service (0, 1, 2)
 - **Topic Structure**: Hierarchical topic organization (`nemo/tools/{id}/start`)
 
@@ -751,7 +752,7 @@ python manage.py test nemo_mqtt
 
 4. **Configuration Testing:**
    - Test different MQTT broker settings
-   - Test TLS/SSL configurations
+   - Test HMAC and broker configuration
    - Test authentication methods
 
 ### Code Quality
@@ -1061,7 +1062,7 @@ grep "pkill.*mosquitto" /var/log/nemo.log
 1. Verify MQTT broker is running: `mosquitto_pub -h localhost -t test -m "hello"`
 2. Check network connectivity and firewall settings
 3. Validate authentication credentials
-4. Check TLS/SSL certificate configuration
+4. Check HMAC secret and broker configuration
 
 #### **Message Format Issues**
 1. Verify JSON serialization in signal handlers
@@ -1094,9 +1095,9 @@ redis-cli -n 1 lrange nemo_mqtt_events 0 -1
 
 Scripts in `scripts/` for development and troubleshooting:
 
-- **`scripts/debug_tls.py`** – Test TLS configuration and certificates
+- **`docs/HMAC.md`** – HMAC message authentication setup and verification
+- **`scripts/debug_hmac.py`** – Verify HMAC configuration and sign/verify test
 - **`scripts/check_bridge_status.py`** – Diagnose Redis-MQTT bridge (run from NEMO project root)
-- **`scripts/fix_ca_certificate.py`** – Generate CA cert with proper Key Usage
 - **`scripts/dev_reinstall.sh`** – Reinstall plugin into NEMO (development)
 
 ### Debug Commands

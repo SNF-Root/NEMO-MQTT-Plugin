@@ -73,6 +73,17 @@ class RedisMQTTBridge:
         self.connection_count = 0
         self.last_connect_time = None
         self.last_disconnect_time = None
+        # Debounce disconnect logging (paho can fire on_disconnect many times)
+        self._last_disconnect_log_time = 0
+        self._last_disconnect_rc = None
+        self._disconnect_log_interval = 5
+        # Throttle reconnection failure logs when circuit breaker is open
+        self._last_reconnect_fail_log_time = 0
+        self._last_reconnect_fail_msg = None
+        self._reconnect_fail_log_interval = 30
+        self._last_reconnecting_log_time = 0
+        self._reconnecting_log_interval = 15
+        self._mqtt_has_connected_before = False
 
         self.mqtt_connection_mgr = ConnectionManager(
             max_retries=None, base_delay=1, max_delay=60,
@@ -133,6 +144,22 @@ class RedisMQTTBridge:
         logger.info("Connected to Redis")
 
     def _initialize_mqtt(self):
+        # Stop existing client so broker can release the session and we don't accumulate clients
+        reconnecting = self.mqtt_client is not None
+        if self.mqtt_client is not None:
+            try:
+                self.mqtt_client.loop_stop()
+                self.mqtt_client.disconnect()
+            except Exception as e:
+                logger.debug("Cleanup of previous MQTT client: %s", e)
+            self.mqtt_client = None
+
+        # When reconnecting, reset connection manager so we get full retries/backoff
+        if reconnecting:
+            self.mqtt_connection_mgr.reset()
+
+        self.config = get_mqtt_config()
+
         def connect():
             self.config = get_mqtt_config()
             if not self.config or not self.config.enabled:
@@ -148,11 +175,16 @@ class RedisMQTTBridge:
         self.mqtt_client = self.mqtt_connection_mgr.connect_with_retry(connect)
         self.connection_count += 1
         self.last_connect_time = time.time()
+        self._last_reconnect_fail_msg = None  # Reset so next failure is logged
         logger.info("Connected to MQTT broker at %s:%s", self.broker_host, self.broker_port)
 
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
-            logger.info("Connected to MQTT broker at %s:%s", self.broker_host, self.broker_port)
+            if self._mqtt_has_connected_before:
+                logger.info("Successfully reconnected to MQTT broker at %s:%s", self.broker_host, self.broker_port)
+            else:
+                logger.info("Connected to MQTT broker at %s:%s", self.broker_host, self.broker_port)
+                self._mqtt_has_connected_before = True
         else:
             errors = {1: "protocol", 2: "client id", 3: "unavailable", 4: "bad auth", 5: "unauthorized"}
             logger.error("MQTT connection failed: %s (rc=%s)", errors.get(rc, rc), rc)
@@ -160,7 +192,13 @@ class RedisMQTTBridge:
     def _on_disconnect(self, client, userdata, rc):
         self.last_disconnect_time = time.time()
         if rc != 0:
-            logger.warning("MQTT disconnected (rc=%s)", rc)
+            now = time.time()
+            rc_changed = self._last_disconnect_rc != rc
+            interval_elapsed = (now - self._last_disconnect_log_time) >= self._disconnect_log_interval
+            if rc_changed or interval_elapsed or self._last_disconnect_log_time == 0:
+                logger.warning("MQTT disconnected (rc=%s)", rc)
+                self._last_disconnect_log_time = now
+                self._last_disconnect_rc = rc
 
     def _on_publish(self, client, userdata, mid):
         logger.debug("Published mid=%s", mid)
@@ -168,12 +206,23 @@ class RedisMQTTBridge:
     def _ensure_mqtt_connected(self):
         if self.mqtt_client and self.mqtt_client.is_connected():
             return True
-        logger.warning("MQTT disconnected, reconnecting...")
+        now = time.time()
+        if (now - self._last_reconnecting_log_time) >= self._reconnecting_log_interval:
+            logger.warning("MQTT disconnected, reconnecting...")
+            self._last_reconnecting_log_time = now
         try:
             self._initialize_mqtt()
             return True
         except Exception as e:
-            logger.error("Reconnection failed: %s", e)
+            msg = str(e)
+            should_log = (
+                (now - self._last_reconnect_fail_log_time) >= self._reconnect_fail_log_interval
+                or msg != self._last_reconnect_fail_msg
+            )
+            if should_log:
+                logger.error("Reconnection failed: %s", e)
+                self._last_reconnect_fail_log_time = now
+                self._last_reconnect_fail_msg = msg
             return False
 
     def _run(self):
@@ -220,7 +269,21 @@ class RedisMQTTBridge:
             logger.warning("MQTT not connected, cannot publish")
             return
         try:
-            result = self.mqtt_client.publish(topic, payload, qos=qos, retain=retain)
+            out_payload = payload
+            if self.config and getattr(self.config, "use_hmac", False) and getattr(self.config, "hmac_secret_key", None):
+                try:
+                    from nemo_mqtt.utils import sign_payload_hmac
+                except ImportError:
+                    from NEMO.plugins.nemo_mqtt.utils import sign_payload_hmac
+                try:
+                    out_payload = sign_payload_hmac(
+                        payload,
+                        self.config.hmac_secret_key,
+                        getattr(self.config, "hmac_algorithm", "sha256") or "sha256",
+                    )
+                except Exception as e:
+                    logger.warning("HMAC signing failed, publishing unsigned: %s", e)
+            result = self.mqtt_client.publish(topic, out_payload, qos=qos, retain=retain)
             if result.rc != mqtt.MQTT_ERR_SUCCESS:
                 logger.error("Publish failed: rc=%s", result.rc)
         except Exception as e:

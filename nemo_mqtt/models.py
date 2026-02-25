@@ -24,22 +24,14 @@ class MQTTConfiguration(models.Model):
     username = models.CharField(max_length=100, blank=True, null=True, help_text="MQTT username")
     password = models.CharField(max_length=100, blank=True, null=True, help_text="MQTT password")
     
-    # TLS/SSL settings
-    use_tls = models.BooleanField(default=False, help_text="Use TLS/SSL connection")
-    tls_version = models.CharField(max_length=20, default="tlsv1.2", choices=[
-        ("tlsv1", "TLSv1"),
-        ("tlsv1.1", "TLSv1.1"), 
-        ("tlsv1.2", "TLSv1.2"),
-        ("tlsv1.3", "TLSv1.3")
-    ], help_text="TLS version")
-    ca_cert_path = models.CharField(max_length=500, blank=True, null=True, help_text="Path to CA certificate file")
-    client_cert_path = models.CharField(max_length=500, blank=True, null=True, help_text="Path to client certificate file")
-    client_key_path = models.CharField(max_length=500, blank=True, null=True, help_text="Path to client private key file")
-    # Certificate content fields for direct paste
-    ca_cert_content = models.TextField(blank=True, null=True, help_text="CA certificate content (PEM format)")
-    client_cert_content = models.TextField(blank=True, null=True, help_text="Client certificate content (PEM format)")
-    client_key_content = models.TextField(blank=True, null=True, help_text="Client private key content (PEM format)")
-    insecure = models.BooleanField(default=False, help_text="Allow insecure TLS connections (not recommended)")
+    # HMAC message authentication (Hash-based Message Authentication Code)
+    use_hmac = models.BooleanField(default=False, help_text="Sign MQTT payloads with HMAC for authenticity and integrity")
+    hmac_secret_key = models.CharField(max_length=500, blank=True, null=True, help_text="Shared secret key for HMAC signing (keep confidential)")
+    hmac_algorithm = models.CharField(max_length=20, default="sha256", choices=[
+        ("sha256", "SHA-256"),
+        ("sha384", "SHA-384"),
+        ("sha512", "SHA-512"),
+    ], help_text="Hash algorithm for HMAC")
     
     # Message settings
     topic_prefix = models.CharField(max_length=100, default="nemo", help_text="Topic prefix for all messages")

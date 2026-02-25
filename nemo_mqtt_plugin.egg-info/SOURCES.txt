@@ -31,6 +31,7 @@ nemo_mqtt/migrations/0003_add_server_certificates.py
 nemo_mqtt/migrations/0004_remove_server_cert_content.py
 nemo_mqtt/migrations/0005_simplify_tls_config.py
 nemo_mqtt/migrations/0006_rename_db_tables_to_lowercase.py
+nemo_mqtt/migrations/0007_replace_tls_with_hmac.py
 nemo_mqtt/migrations/__init__.py
 nemo_mqtt/monitoring/__init__.py
 nemo_mqtt/monitoring/mqtt_monitor.py
@@ -47,8 +48,7 @@ nemo_mqtt_plugin.egg-info/not-zip-safe
 nemo_mqtt_plugin.egg-info/requires.txt
 nemo_mqtt_plugin.egg-info/top_level.txt
 scripts/check_bridge_status.py
-scripts/debug_tls.py
-scripts/fix_ca_certificate.py
+scripts/debug_hmac.py
 tests/__init__.py
 tests/conftest.py
 tests/simple_test.py

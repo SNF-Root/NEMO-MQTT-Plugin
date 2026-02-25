@@ -82,56 +82,18 @@ class MQTTCustomization(CustomizationBase):
         config.broker_port = int(request.POST.get('mqtt_broker_port', config.broker_port))
         config.keepalive = int(request.POST.get('mqtt_keepalive', config.keepalive))
         config.client_id = request.POST.get('mqtt_client_id', config.client_id)
+        config.username = request.POST.get('mqtt_broker_username', config.username) or None
+        broker_password = request.POST.get('mqtt_broker_password', '')
+        if broker_password:
+            config.password = broker_password
+        # else: leave config.password unchanged (blank in form = keep current)
         
-        # SSL/TLS settings
-        config.use_tls = request.POST.get('mqtt_use_tls') == 'enabled'
-        config.tls_version = 'tlsv1.2'  # Hardcoded to TLS 1.2
-        config.ca_cert_content = request.POST.get('mqtt_ca_cert', config.ca_cert_content)
-        config.insecure = False  # Always use secure TLS connections
-        
-        # Validate TLS certificates if TLS is enabled
-        if config.use_tls:
-            print("🔐 TLS Configuration Validation:")
-            print(f"   🔐 TLS Version: {config.tls_version}")
-            
-            # Validate CA certificate
-            if config.ca_cert_content:
-                from .utils import validate_tls_certificate
-                ca_validation = validate_tls_certificate(config.ca_cert_content, "CA")
-                print(f"   🔐 CA Certificate Validation:")
-                print(f"   🔐   Valid: {ca_validation['valid']}")
-                if ca_validation['valid']:
-                    print(f"   🔐   Subject: {ca_validation['cert_info'].get('subject', 'N/A')}")
-                    print(f"   🔐   Issuer: {ca_validation['cert_info'].get('issuer', 'N/A')}")
-                    print(f"   🔐   Valid Until: {ca_validation['cert_info'].get('not_after', 'N/A')}")
-                else:
-                    print(f"   🔐   Error: {ca_validation['error']}")
-                    print(f"   🔐   Preview: {ca_validation['preview']}")
-            else:
-                print(f"   🔐 CA Certificate: Not provided")
-            
-            # Test TLS connection if all required components are present
-            if config.ca_cert_content or config.ca_cert_path:
-                print(f"   🔐 Testing TLS connection...")
-                from .utils import test_tls_connection
-                tls_test = test_tls_connection(config)
-                print(f"   🔐 TLS Connection Test:")
-                print(f"   🔐   Success: {tls_test['success']}")
-                if tls_test['success']:
-                    print(f"   🔐   ✅ TLS connection test passed!")
-                    if 'server_cert' in tls_test['debug_info']:
-                        server_cert = tls_test['debug_info']['server_cert']
-                        print(f"   🔐   Server Certificate:")
-                        print(f"   🔐     Subject: {server_cert.get('subject', 'N/A')}")
-                        print(f"   🔐     Issuer: {server_cert.get('issuer', 'N/A')}")
-                        print(f"   🔐     Valid Until: {server_cert.get('not_after', 'N/A')}")
-                else:
-                    print(f"   🔐   ❌ TLS connection test failed: {tls_test['error']}")
-                    print(f"   🔐   Steps:")
-                    for step in tls_test['steps']:
-                        print(f"   🔐     {step}")
-            else:
-                print(f"   🔐 TLS Connection Test: Skipped (no CA certificate provided)")
+        # HMAC message authentication
+        config.use_hmac = request.POST.get('mqtt_use_hmac') == 'enabled'
+        hmac_key = request.POST.get('mqtt_hmac_secret_key', '')
+        if hmac_key:
+            config.hmac_secret_key = hmac_key
+        config.hmac_algorithm = request.POST.get('mqtt_hmac_algorithm', config.hmac_algorithm) or 'sha256'
         
         config.topic_prefix = request.POST.get('mqtt_topic_prefix', config.topic_prefix)
         config.qos_level = int(request.POST.get('mqtt_qos_level', config.qos_level))
