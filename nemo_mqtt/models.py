@@ -27,15 +27,11 @@ class MQTTConfiguration(models.Model):
     # HMAC message authentication (Hash-based Message Authentication Code)
     use_hmac = models.BooleanField(default=False, help_text="Sign MQTT payloads with HMAC for authenticity and integrity")
     hmac_secret_key = models.CharField(max_length=500, blank=True, null=True, help_text="Shared secret key for HMAC signing (keep confidential)")
-    hmac_algorithm = models.CharField(max_length=20, default="sha256", choices=[
-        ("sha256", "SHA-256"),
-        ("sha384", "SHA-384"),
-        ("sha512", "SHA-512"),
-    ], help_text="Hash algorithm for HMAC")
+    hmac_algorithm = models.CharField(max_length=20, default="sha256", help_text="Hash algorithm for HMAC (fixed at SHA-256)")
     
     # Message settings
     topic_prefix = models.CharField(max_length=100, default="nemo", help_text="Topic prefix for all messages")
-    qos_level = models.IntegerField(default=0, choices=[(0, "At most once"), (1, "At least once"), (2, "Exactly once")], help_text="Quality of Service level")
+    qos_level = models.IntegerField(default=1, choices=[(1, "At least once")], help_text="Quality of Service level (fixed at 1 for reliable delivery)")
     retain_messages = models.BooleanField(default=False, help_text="Retain messages on broker")
     clean_session = models.BooleanField(default=True, help_text="Start with a clean session")
     
@@ -122,8 +118,13 @@ class MQTTEventFilter(models.Model):
 # Signal handlers to clear cache when MQTT configuration changes
 @receiver(post_save, sender=MQTTConfiguration)
 def clear_mqtt_config_cache_on_save(sender, instance, **kwargs):
-    """Clear the MQTT configuration cache when a configuration is saved"""
+    """Clear the MQTT configuration cache when a configuration is saved and notify bridge to reload."""
     cache.delete('mqtt_active_config')
+    try:
+        from nemo_mqtt.redis_publisher import notify_bridge_reload_config
+    except ImportError:
+        from NEMO.plugins.nemo_mqtt.redis_publisher import notify_bridge_reload_config
+    notify_bridge_reload_config()
 
 
 @receiver(post_delete, sender=MQTTConfiguration)

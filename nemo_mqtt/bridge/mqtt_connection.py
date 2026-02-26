@@ -25,8 +25,16 @@ def connect_mqtt(
     client.on_disconnect = on_disconnect
     client.on_publish = on_publish
 
-    if config.username and config.password:
+    use_auth = bool(config.username and config.password)
+    if use_auth:
         client.username_pw_set(config.username, config.password)
+    logger.debug(
+        "MQTT connect: %s:%s username=%r password_set=%s",
+        config.broker_host or "localhost",
+        config.broker_port or 1883,
+        config.username or None,
+        use_auth,
+    )
 
     broker_host = config.broker_host or "localhost"
     broker_port = config.broker_port or 1883

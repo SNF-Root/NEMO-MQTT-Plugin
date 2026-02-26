@@ -11,39 +11,35 @@ from django.http import HttpResponse
 logger = logging.getLogger(__name__)
 
 
-def get_mqtt_config() -> Optional['MQTTConfiguration']:
+def get_mqtt_config(force_refresh: bool = False) -> Optional['MQTTConfiguration']:
     """
     Get MQTT configuration from database with caching.
-    
+
     Cache is automatically cleared when configuration is saved in Django admin.
-    This ensures configuration changes take effect immediately without restart.
-    
+    Use force_refresh=True when reconnecting so broker username/password and HMAC
+    settings are always loaded from the database (avoids stale cache in the bridge process).
+
     Returns:
         MQTTConfiguration instance or None if not configured
     """
     from django.core.cache import cache
-    
-    # Try to get from cache first
-    config = cache.get('mqtt_active_config')
-    
-    if config is not None:
-        # Return cached config (could be None if no config exists)
-        return config if config != 'NO_CONFIG' else None
-    
-    # Cache miss - query database
+
+    if not force_refresh:
+        config = cache.get('mqtt_active_config')
+        if config is not None:
+            return config if config != 'NO_CONFIG' else None
+
+    # Force refresh or cache miss - query database
     try:
         from .models import MQTTConfiguration
-        
-        # Get the first enabled configuration
+
         config = MQTTConfiguration.objects.filter(enabled=True).first()
-        
-        # Cache the result (cache None as special value to avoid repeated queries)
-        # Cache timeout: 300 seconds (5 minutes) as fallback if signals don't fire
+
         if config:
             cache.set('mqtt_active_config', config, 300)
         else:
             cache.set('mqtt_active_config', 'NO_CONFIG', 300)
-        
+
         return config
     except Exception as e:
         logger.warning(f"Could not load MQTT configuration from database: {e}")
@@ -174,31 +170,33 @@ def get_event_topic_override(event_type: str) -> Optional[str]:
 
 def sign_payload_hmac(payload: str, secret_key: str, algorithm: str = "sha256") -> str:
     """
-    Sign a payload with HMAC and return a JSON envelope with payload, hmac, and algo.
+    Sign a payload with HMAC-SHA256 and return a JSON envelope with payload, hmac, and algo.
     Subscribers can verify authenticity and integrity using the same shared secret.
+
+    The algorithm parameter is ignored; only SHA-256 is used. It is kept for API compatibility.
 
     Args:
         payload: Raw message payload (string)
         secret_key: Shared secret for HMAC
-        algorithm: Hash algorithm name (e.g. 'sha256', 'sha384', 'sha512')
+        algorithm: Ignored; always SHA-256 (kept for compatibility)
 
     Returns:
-        JSON string: {"payload": "<original>", "hmac": "<hex>", "algo": "<algorithm>"}
+        JSON string: {"payload": "<original>", "hmac": "<hex>", "algo": "sha256"}
     """
     import hmac as hm
     import hashlib
 
-    algo_map = {"sha256": hashlib.sha256, "sha384": hashlib.sha384, "sha512": hashlib.sha512}
-    digest_fn = algo_map.get(algorithm.lower(), hashlib.sha256)
     key = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
     msg = payload.encode("utf-8") if isinstance(payload, str) else payload
-    sig = hm.new(key, msg, digest_fn).hexdigest()
-    return json.dumps({"payload": payload, "hmac": sig, "algo": algorithm.lower()})
+    sig = hm.new(key, msg, hashlib.sha256).hexdigest()
+    return json.dumps({"payload": payload, "hmac": sig, "algo": "sha256"})
 
 
 def verify_payload_hmac(envelope_json: str, secret_key: str) -> tuple:
     """
-    Verify an HMAC-signed envelope and return (valid, original_payload).
+    Verify an HMAC-signed envelope (SHA-256 only) and return (valid, original_payload).
+
+    Only SHA-256 is supported. Envelopes signed with other algorithms will fail verification.
 
     Args:
         envelope_json: JSON string from sign_payload_hmac
@@ -217,11 +215,11 @@ def verify_payload_hmac(envelope_json: str, secret_key: str) -> tuple:
         algo = (data.get("algo") or "sha256").lower()
         if payload is None or sig is None:
             return False, ""
-        algo_map = {"sha256": hashlib.sha256, "sha384": hashlib.sha384, "sha512": hashlib.sha512}
-        digest_fn = algo_map.get(algo, hashlib.sha256)
+        if algo != "sha256":
+            return False, ""
         key = secret_key.encode("utf-8") if isinstance(secret_key, str) else secret_key
         msg = payload.encode("utf-8") if isinstance(payload, str) else payload
-        expected = hm.new(key, msg, digest_fn).hexdigest()
+        expected = hm.new(key, msg, hashlib.sha256).hexdigest()
         if not hm.compare_digest(expected, sig):
             return False, ""
         return True, payload

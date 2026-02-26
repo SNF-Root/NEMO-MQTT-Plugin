@@ -39,7 +39,7 @@ A comprehensive Django plugin that provides MQTT integration for NEMO tool usage
 - **Multiple Configurations**: Support for multiple MQTT broker configurations
 - **Event Filtering**: Granular control over which events to publish
 - **Topic Customization**: Configurable topic prefixes and structures
-- **QoS Settings**: Quality of Service level configuration
+- **QoS**: Quality of Service fixed at 1 (at least once) for reliable delivery; not configurable
 
 ### **Security & Reliability**
 - **HMAC Message Authentication**: Sign payloads with HMAC for authenticity and integrity (see [docs/HMAC.md](docs/HMAC.md))
@@ -202,7 +202,7 @@ Configure MQTT settings through the Django customization interface at `/customiz
 - **Enabled**: Enable/disable this configuration
 - **Broker Host**: MQTT broker address (default: localhost)
 - **Broker Port**: MQTT broker port (default: 1883)
-- **Client ID**: Unique MQTT client identifier
+- **Client ID**: Identifier stored for this NEMO instance (shown in the monitor and used as the default when creating a new config). The Redis-MQTT bridge does **not** send this value to the broker; it always connects with `nemo_bridge_{hostname}_{pid}` so each bridge process has a unique session. Broker authentication uses **Username** and **Password** above, not the Client ID.
 - **Keep Alive**: Connection keep-alive interval (seconds)
 
 #### **Authentication**
@@ -212,16 +212,15 @@ Configure MQTT settings through the Django customization interface at `/customiz
 
 #### **HMAC Message Authentication**
 - **HMAC secret key**: Shared secret for signing (subscribers use same key to verify)
-- **Hash algorithm**: SHA-256, SHA-384, or SHA-512
-- **CA Certificate**: Certificate Authority certificate (PEM format)
-- **Client Certificate**: Client certificate (PEM format)
-- **Client Key**: Client private key (PEM format)
+- HMAC signing uses **SHA-256 only** (not configurable).
 
 #### **Message Settings**
 - **Topic Prefix**: Prefix for all MQTT topics (default: "nemo")
-- **QoS Level**: Quality of Service (0=At most once, 1=At least once, 2=Exactly once)
+- **QoS**: Fixed at 1 (at least once) for reliable delivery—not configurable (see note below)
 - **Retain Messages**: Retain messages on broker
 - **Clean Session**: Start with clean session
+
+**QoS assumption:** The plugin uses MQTT QoS 1 (at least once) only. QoS 0 and 2 are not offered; QoS 1 is the right choice for NEMO event publishing (reliable delivery without the overhead of exactly-once).
 
 #### **Connection Management**
 - **Auto Reconnect**: Automatically reconnect on connection loss
@@ -396,7 +395,7 @@ Access the real-time monitoring dashboard at `/mqtt/monitor/`:
 - **Source**: Redis (internal) or MQTT (broker)
 - **Topic**: MQTT topic path
 - **Payload**: JSON-formatted message data
-- **QoS**: Quality of Service level
+- **QoS**: Quality of Service level (fixed at 1)
 - **Retain**: Whether message was retained
 
 ### Command-Line Monitoring
@@ -536,7 +535,7 @@ The NEMO MQTT Plugin uses a sophisticated multi-layered architecture designed fo
 #### 4. **MQTT Broker Integration**
 - **Protocol Support**: Full MQTT 3.1.1 and 5.0 support
 - **Security**: HMAC message authentication; optional broker username/password
-- **QoS Levels**: Configurable Quality of Service (0, 1, 2)
+- **QoS**: Quality of Service fixed at 1 (at least once) for reliable delivery
 - **Topic Structure**: Hierarchical topic organization (`nemo/tools/{id}/start`)
 
 ### Message Flow

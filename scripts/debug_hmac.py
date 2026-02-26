@@ -33,11 +33,11 @@ def main():
     print(f"Configuration: {config.name}")
     print(f"Broker: {config.broker_host}:{config.broker_port}")
     print(f"HMAC enabled: {getattr(config, 'use_hmac', False)}")
-    print(f"HMAC algorithm: {getattr(config, 'hmac_algorithm', 'sha256')}")
+    print("HMAC algorithm: SHA-256 (fixed)")
     print(f"HMAC secret set: {bool(getattr(config, 'hmac_secret_key', None))}")
     if getattr(config, "use_hmac", False) and getattr(config, "hmac_secret_key", None):
         test = '{"hello": "world"}'
-        envelope = sign_payload_hmac(test, config.hmac_secret_key, getattr(config, "hmac_algorithm", "sha256"))
+        envelope = sign_payload_hmac(test, config.hmac_secret_key)
         valid, payload = verify_payload_hmac(envelope, config.hmac_secret_key)
         print(f"Sign/verify test: {'OK' if valid and payload == test else 'FAIL'}")
     print("Done.")

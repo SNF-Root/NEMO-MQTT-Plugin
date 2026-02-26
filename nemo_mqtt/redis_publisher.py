@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 EVENTS_LIST_KEY = 'nemo_mqtt_events'
 MONITOR_LIST_KEY = 'nemo_mqtt_monitor'
 MONITOR_LIST_MAXLEN = 100
+BRIDGE_CONTROL_KEY = 'nemo_mqtt_bridge_control'
+
 
 class RedisMQTTPublisher:
     """Publishes MQTT events to Redis for consumption by external MQTT service"""
@@ -105,17 +107,6 @@ class RedisMQTTPublisher:
             logger.error("Failed to publish event to Redis: %s", e)
             return False
     
-    def is_available(self) -> bool:
-        """Check if Redis is available"""
-        if not self.redis_client:
-            return False
-
-        try:
-            self.redis_client.ping()
-            return True
-        except Exception:
-            return False
-
     def get_monitor_messages(self) -> list:
         """
         Return recent events from the monitor list (what NEMO has published to Redis).
@@ -150,6 +141,17 @@ class RedisMQTTPublisher:
                 continue
         return messages
 
+    def is_available(self) -> bool:
+        """Check if Redis is available"""
+        if not self.redis_client:
+            return False
+
+        try:
+            self.redis_client.ping()
+            return True
+        except Exception:
+            return False
+
 # Global instance
 redis_publisher = RedisMQTTPublisher()
 
@@ -167,3 +169,23 @@ def publish_mqtt_event(topic: str, payload: str, qos: int = 0, retain: bool = Fa
         bool: True if published successfully, False otherwise
     """
     return redis_publisher.publish_event(topic, payload, qos, retain)
+
+
+def notify_bridge_reload_config() -> bool:
+    """
+    Notify the Redis-MQTT bridge to reload configuration (disconnect and reconnect to broker).
+    Call this after saving MQTT configuration so the running bridge picks up the new settings.
+    """
+    try:
+        client = redis_publisher.redis_client
+        if client is None:
+            client = redis.Redis(
+                host='localhost', port=6379, db=1,
+                decode_responses=True, socket_connect_timeout=2, socket_timeout=2,
+            )
+        client.lpush(BRIDGE_CONTROL_KEY, 'reload_config')
+        logger.debug("Notified bridge to reload config")
+        return True
+    except Exception as e:
+        logger.warning("Failed to notify bridge to reload config: %s", e)
+        return False

@@ -598,7 +598,7 @@ console.log('=== Main JavaScript loaded ===');
             <div class="col-md-6">
                 <strong>HMAC:</strong> 
                 {% if mqtt_config.use_hmac %}
-                    <span class="badge badge-success">Enabled ({{ mqtt_config.hmac_algorithm }})</span>
+                    <span class="badge badge-success">Enabled (SHA-256)</span>
                 {% else %}
                     <span class="badge badge-warning">Disabled</span>
                 {% endif %}<br>

@@ -148,16 +148,6 @@
                 </div>
                 <div class="col-md-12 help-block light-grey">Same secret must be configured on subscribers to verify messages. Leave blank when editing to keep existing key.</div>
             </div>
-            <div class="form-group">
-                <label class="control-label col-md-3" for="mqtt_hmac_algorithm">Hash algorithm</label>
-                <div class="col-md-4">
-                    <select id="mqtt_hmac_algorithm" name="mqtt_hmac_algorithm" class="form-control">
-                        <option value="sha256" {% if config.hmac_algorithm == 'sha256' %}selected{% endif %}>SHA-256</option>
-                        <option value="sha384" {% if config.hmac_algorithm == 'sha384' %}selected{% endif %}>SHA-384</option>
-                        <option value="sha512" {% if config.hmac_algorithm == 'sha512' %}selected{% endif %}>SHA-512</option>
-                    </select>
-                </div>
-            </div>
         </div>
         
         <!-- Message Settings -->
@@ -174,18 +164,6 @@
                        value="{{ config.topic_prefix }}">
             </div>
             <div class="col-md-5 help-block light-grey">Prefix for all MQTT topics (e.g., 'nemo/' for topics like 'nemo/tool/start').</div>
-        </div>
-        
-        <div class="form-group">
-            <label class="control-label col-md-3" for="mqtt_qos_level">QoS Level</label>
-            <div class="col-md-4">
-                <select id="mqtt_qos_level" name="mqtt_qos_level" class="form-control">
-                    <option value="0" {% if config.qos_level == 0 %}selected{% endif %}>0 - At most once</option>
-                    <option value="1" {% if config.qos_level == 1 %}selected{% endif %}>1 - At least once</option>
-                    <option value="2" {% if config.qos_level == 2 %}selected{% endif %}>2 - Exactly once</option>
-                </select>
-            </div>
-            <div class="col-md-5 help-block light-grey">Quality of Service level for message delivery.</div>
         </div>
         
         <div class="form-group">

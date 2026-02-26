@@ -2,6 +2,16 @@
 """
 Redis-MQTT Bridge Service for NEMO Plugin.
 
+NEMO never connects to the MQTT broker. It publishes events to Redis (see redis_publisher.py).
+This bridge is a separate process that:
+  1. Connects to Redis (localhost:6379 db=1) and consumes from the events list
+  2. Connects to the MQTT broker (using plugin config: host, port, auth)
+  3. For each event from Redis, publishes to the broker
+
+So the bridge is the only component that talks to the broker; it forwards Redis → MQTT.
+Connection to the broker uses mqtt_connection.connect_mqtt() and honors max_reconnect_attempts
+and reconnect_delay from the saved MQTT configuration.
+
 Modes:
   - AUTO: Starts Redis and Mosquitto for development
   - EXTERNAL: Connects to existing services (production)
@@ -32,7 +42,7 @@ except ImportError:
 
 try:
     from nemo_mqtt.connection_manager import ConnectionManager
-    from nemo_mqtt.redis_publisher import EVENTS_LIST_KEY
+    from nemo_mqtt.redis_publisher import EVENTS_LIST_KEY, BRIDGE_CONTROL_KEY
     from nemo_mqtt.bridge.process_lock import acquire_lock, release_lock
     from nemo_mqtt.bridge.auto_services import (
         cleanup_existing_services,
@@ -42,7 +52,7 @@ try:
     from nemo_mqtt.bridge.mqtt_connection import connect_mqtt
 except ImportError:
     from NEMO.plugins.nemo_mqtt.connection_manager import ConnectionManager
-    from NEMO.plugins.nemo_mqtt.redis_publisher import EVENTS_LIST_KEY
+    from NEMO.plugins.nemo_mqtt.redis_publisher import EVENTS_LIST_KEY, BRIDGE_CONTROL_KEY
     from NEMO.plugins.nemo_mqtt.bridge.process_lock import acquire_lock, release_lock
     from NEMO.plugins.nemo_mqtt.bridge.auto_services import (
         cleanup_existing_services,
@@ -85,10 +95,8 @@ class RedisMQTTBridge:
         self._reconnecting_log_interval = 15
         self._mqtt_has_connected_before = False
 
-        self.mqtt_connection_mgr = ConnectionManager(
-            max_retries=None, base_delay=1, max_delay=60,
-            failure_threshold=5, success_threshold=3, timeout=60,
-        )
+        # MQTT connection manager created in _initialize_mqtt() from config (max_retries, reconnect_delay)
+        self.mqtt_connection_mgr = None
         self.redis_connection_mgr = ConnectionManager(
             max_retries=None, base_delay=1, max_delay=30,
             failure_threshold=5, success_threshold=3, timeout=60,
@@ -145,7 +153,6 @@ class RedisMQTTBridge:
 
     def _initialize_mqtt(self):
         # Stop existing client so broker can release the session and we don't accumulate clients
-        reconnecting = self.mqtt_client is not None
         if self.mqtt_client is not None:
             try:
                 self.mqtt_client.loop_stop()
@@ -154,11 +161,21 @@ class RedisMQTTBridge:
                 logger.debug("Cleanup of previous MQTT client: %s", e)
             self.mqtt_client = None
 
-        # When reconnecting, reset connection manager so we get full retries/backoff
-        if reconnecting:
-            self.mqtt_connection_mgr.reset()
-
         self.config = get_mqtt_config()
+        if not self.config or not self.config.enabled:
+            raise RuntimeError("No enabled MQTT configuration")
+
+        # Create connection manager from config so max_retries and reconnect_delay are honored
+        max_retries = self.config.max_reconnect_attempts if self.config.max_reconnect_attempts else None  # 0 = unlimited
+        base_delay = getattr(self.config, "reconnect_delay", 5) or 5
+        self.mqtt_connection_mgr = ConnectionManager(
+            max_retries=max_retries,
+            base_delay=base_delay,
+            max_delay=60,
+            failure_threshold=5,
+            success_threshold=3,
+            timeout=60,
+        )
 
         def connect():
             self.config = get_mqtt_config()
@@ -227,6 +244,9 @@ class RedisMQTTBridge:
 
     def _run(self):
         """Main loop: consume Redis, publish to MQTT."""
+        # Honor config log level so DEBUG in NEMO MQTT settings shows HMAC/message debug
+        level_name = getattr(self.config, "log_level", None) or "INFO"
+        logger.setLevel(getattr(logging, level_name.upper(), logging.INFO))
         logger.info("Starting consumption loop")
         while self.running:
             try:
@@ -238,6 +258,21 @@ class RedisMQTTBridge:
                 except Exception as e:
                     logger.warning("Redis disconnected: %s", e)
                     self._initialize_redis()
+                # Check for config-reload request (e.g. after saving MQTT config in Admin)
+                control = self.redis_client.lpop(BRIDGE_CONTROL_KEY)
+                if control == 'reload_config':
+                    logger.info("Config reload requested, reconnecting to broker with latest settings")
+                    try:
+                        from django.core.cache import cache
+                        cache.delete('mqtt_active_config')
+                    except Exception as e:
+                        logger.debug("Could not clear config cache: %s", e)
+                    # Force fresh config from DB so broker username/password and HMAC are current
+                    self.config = get_mqtt_config(force_refresh=True)
+                    # Re-apply log level from new config (e.g. INFO → DEBUG)
+                    level_name = getattr(self.config, "log_level", None) or "INFO"
+                    logger.setLevel(getattr(logging, level_name.upper(), logging.INFO))
+                    self._initialize_mqtt()
                 result = self.redis_client.blpop(EVENTS_LIST_KEY, timeout=1)
                 if result:
                     channel, event_data = result
@@ -254,9 +289,18 @@ class RedisMQTTBridge:
             payload = event.get('payload')
             qos = event.get('qos', 0)
             retain = event.get('retain', False)
+            # Debug: exact message from Nemo (Redis) and HMAC secret used for signing
+            _secret = (self.config.hmac_secret_key or "") if self.config else ""
+            logger.debug(
+                "HMAC debug: hmac_secret_key=%r, topic=%s, raw_payload_from_nemo=%r",
+                _secret, topic, payload,
+            )
             if topic and payload is not None:
                 self._publish_to_mqtt(topic, payload, qos, retain)
-                logger.debug("Published to MQTT: %s", topic)
+                logger.debug(
+                    "HMAC debug: hmac_secret_key=%r, topic=%s, published_to_mqtt=ok",
+                    _secret, topic,
+                )
             else:
                 logger.warning("Invalid event: missing topic or payload")
         except json.JSONDecodeError as e:
@@ -268,6 +312,11 @@ class RedisMQTTBridge:
         if not self.mqtt_client or not self.mqtt_client.is_connected():
             logger.warning("MQTT not connected, cannot publish")
             return
+        _secret = (self.config.hmac_secret_key or "") if self.config else ""
+        logger.debug(
+            "HMAC debug: hmac_secret_key=%r, topic=%s, payload_before_hmac=%r",
+            _secret, topic, payload,
+        )
         try:
             out_payload = payload
             if self.config and getattr(self.config, "use_hmac", False) and getattr(self.config, "hmac_secret_key", None):
@@ -279,10 +328,22 @@ class RedisMQTTBridge:
                     out_payload = sign_payload_hmac(
                         payload,
                         self.config.hmac_secret_key,
-                        getattr(self.config, "hmac_algorithm", "sha256") or "sha256",
+                    )
+                    logger.debug(
+                        "HMAC debug: hmac_secret_key=%r, topic=%s, exact_mqtt_message_sent=%r",
+                        _secret, topic, out_payload,
                     )
                 except Exception as e:
                     logger.warning("HMAC signing failed, publishing unsigned: %s", e)
+                    logger.debug(
+                        "HMAC debug: hmac_secret_key=%r, topic=%s, unsigned_payload_sent=%r",
+                        _secret, topic, out_payload,
+                    )
+            else:
+                logger.debug(
+                    "HMAC debug: hmac_secret_key=%r, topic=%s, exact_mqtt_message_sent=%r (no HMAC)",
+                    _secret, topic, out_payload,
+                )
             result = self.mqtt_client.publish(topic, out_payload, qos=qos, retain=retain)
             if result.rc != mqtt.MQTT_ERR_SUCCESS:
                 logger.error("Publish failed: rc=%s", result.rc)

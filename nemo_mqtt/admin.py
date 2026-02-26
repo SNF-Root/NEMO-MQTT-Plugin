@@ -24,7 +24,7 @@ class MQTTConfigurationAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
         ('HMAC Message Authentication', {
-            'fields': ('use_hmac', 'hmac_secret_key', 'hmac_algorithm'),
+            'fields': ('use_hmac', 'hmac_secret_key'),
             'classes': ('collapse',)
         }),
         ('Message Settings', {

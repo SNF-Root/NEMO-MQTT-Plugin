@@ -6,6 +6,37 @@ from NEMO.views.customization import CustomizationBase
 from .models import MQTTConfiguration, MQTTMessageLog, MQTTEventFilter
 
 
+def _print_config_to_terminal(config, broker_password=False, hmac_key_set=False):
+    """Print current MQTT configuration to stdout for verification (TESTING: sensitive values shown)."""
+    lines = [
+        "",
+        "--- MQTT configuration saved ---",
+        f"  name: {config.name}",
+        f"  enabled: {config.enabled}",
+        f"  broker_host: {config.broker_host}",
+        f"  broker_port: {config.broker_port}",
+        f"  keepalive: {config.keepalive}",
+        f"  client_id: {config.client_id}",
+        f"  username: {config.username or '(not set)'}",
+        f"  password: {config.password or '(not set)'}",
+        f"  use_hmac: {config.use_hmac}",
+        f"  hmac_secret_key: {config.hmac_secret_key or '(not set)'}",
+        "  hmac_algorithm: sha256 (fixed)",
+        f"  topic_prefix: {config.topic_prefix}",
+        f"  qos_level: {config.qos_level}",
+        f"  retain_messages: {config.retain_messages}",
+        f"  clean_session: {config.clean_session}",
+        f"  auto_reconnect: {config.auto_reconnect}",
+        f"  reconnect_delay: {config.reconnect_delay}",
+        f"  max_reconnect_attempts: {config.max_reconnect_attempts}",
+        f"  log_messages: {config.log_messages}",
+        f"  log_level: {config.log_level}",
+        "--------------------------------",
+        "",
+    ]
+    print("\n".join(lines))
+
+
 @customization("mqtt", "MQTT Plugin")
 class MQTTCustomization(CustomizationBase):
     """
@@ -93,10 +124,10 @@ class MQTTCustomization(CustomizationBase):
         hmac_key = request.POST.get('mqtt_hmac_secret_key', '')
         if hmac_key:
             config.hmac_secret_key = hmac_key
-        config.hmac_algorithm = request.POST.get('mqtt_hmac_algorithm', config.hmac_algorithm) or 'sha256'
+        config.hmac_algorithm = 'sha256'  # Fixed; no longer configurable
         
         config.topic_prefix = request.POST.get('mqtt_topic_prefix', config.topic_prefix)
-        config.qos_level = int(request.POST.get('mqtt_qos_level', config.qos_level))
+        config.qos_level = 1  # Fixed at 1 (at least once) for reliable delivery; not configurable
         config.retain_messages = request.POST.get('mqtt_retain_messages') == 'enabled'
         config.clean_session = request.POST.get('mqtt_clean_session') == 'enabled'
         config.auto_reconnect = request.POST.get('mqtt_auto_reconnect') == 'enabled'
@@ -108,5 +139,8 @@ class MQTTCustomization(CustomizationBase):
         config.save()
         
         messages.success(request, 'MQTT configuration saved successfully!')
+        
+        # Display configuration in terminal for verification (sensitive fields masked)
+        _print_config_to_terminal(config, broker_password=bool(broker_password), hmac_key_set=bool(hmac_key))
         
         return {}
