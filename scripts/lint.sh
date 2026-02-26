@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run linting checks
 
-echo "🔍 Running linting checks..."
+echo "Running linting checks..."
 
 # Install linting tools
 pip install flake8 mypy
@@ -15,4 +15,4 @@ flake8 nemo_mqtt/ --count --exit-zero --max-complexity=10 --max-line-length=88 -
 echo "Running mypy..."
 mypy nemo_mqtt/ --ignore-missing-imports
 
-echo "✅ Linting complete!"
+echo "Linting complete!"

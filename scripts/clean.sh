@@ -1,7 +1,7 @@
 #!/bin/bash
 # Clean up development artifacts
 
-echo "🧹 Cleaning up development artifacts..."
+echo "Cleaning up development artifacts..."
 
 # Remove Python cache files
 find . -type f -name "*.pyc" -delete
@@ -31,4 +31,4 @@ rm -rf .idea/
 find . -name ".DS_Store" -delete
 find . -name "Thumbs.db" -delete
 
-echo "✅ Cleanup complete!"
+echo "Cleanup complete!"

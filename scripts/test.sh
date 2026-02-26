@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run tests with coverage
 
-echo "🧪 Running tests..."
+echo "Running tests..."
 
 # Install test dependencies
 pip install -e .[dev,test]
@@ -14,4 +14,4 @@ pytest tests/ \
     --cov-report=xml \
     -v
 
-echo "✅ Tests complete! Coverage report available in htmlcov/"
+echo "Tests complete! Coverage report available in htmlcov/"

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Format code with black and isort
 
-echo "🎨 Formatting code..."
+echo "Formatting code..."
 
 # Install formatting tools
 pip install black isort
@@ -14,4 +14,4 @@ black nemo_mqtt/
 echo "Running isort..."
 isort nemo_mqtt/
 
-echo "✅ Code formatting complete!"
+echo "Code formatting complete!"
