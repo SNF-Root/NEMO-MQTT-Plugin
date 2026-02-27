@@ -1,12 +1,11 @@
 include README.md
 include LICENSE
 include CHANGELOG.md
-include requirements.txt
 include pyproject.toml
-recursive-include nemo_mqtt/templates *
-recursive-include nemo_mqtt/migrations *
-include nemo_mqtt/*.txt
-include nemo_mqtt/*.service
+recursive-include src/nemo_mqtt/templates *
+recursive-include src/nemo_mqtt/migrations *
+include src/nemo_mqtt/*.txt
+include src/nemo_mqtt/*.service
 global-exclude *.pyc
 global-exclude __pycache__
 global-exclude .git*

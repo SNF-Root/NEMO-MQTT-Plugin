@@ -163,9 +163,7 @@ Remove or correct the `monitor_mqtt.sh` reference.
 
 ## 8. Duplicate Build Configuration
 
-Both `setup.py` and `pyproject.toml` define the project. `pyproject.toml` is the modern standard.
-
-**Action**: Prefer `pyproject.toml` as the single source of truth. Keep `setup.py` only if you need compatibility with very old tooling, or migrate fully to `pyproject.toml` and use a minimal `setup.py` that defers to it.
+**Done**: `setup.py` has been removed. `pyproject.toml` is the single source of truth for build configuration.
 
 ---
 
@@ -200,9 +198,7 @@ except:
 
 ## 12. Optional: Classifier Update
 
-`setup.py` and `pyproject.toml` use `Development Status :: 4 - Beta`.
-
-**Action**: For a 1.0.0 release, consider changing to `Development Status :: 5 - Production/Stable` if you consider it production-ready.
+**Done**: `pyproject.toml` uses `Development Status :: 5 - Production/Stable`.
 
 ---
 

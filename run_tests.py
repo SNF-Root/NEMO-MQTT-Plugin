@@ -3,6 +3,12 @@
 import os
 import sys
 
+# Prefer src layout: add src to path so nemo_mqtt is importable without pip install -e .
+_root = os.path.dirname(os.path.abspath(__file__))
+_src = os.path.join(_root, "src")
+if os.path.isdir(_src) and _src not in sys.path:
+    sys.path.insert(0, _src)
+
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'tests.test_settings')
 
 if __name__ == '__main__':

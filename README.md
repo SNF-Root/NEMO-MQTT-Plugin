@@ -402,7 +402,7 @@ Access the real-time monitoring dashboard at `/mqtt/monitor/`:
 #### **Full MQTT Monitor**
 ```bash
 # Monitor both Redis and MQTT messages
-python nemo_mqtt/monitoring/mqtt_monitor.py
+python src/nemo_mqtt/monitoring/mqtt_monitor.py
 
 # Or use the monitoring script
 ./scripts/monitor_services.sh
@@ -411,7 +411,7 @@ python nemo_mqtt/monitoring/mqtt_monitor.py
 #### **Redis-Only Monitor**
 ```bash
 # Monitor Redis messages only
-python nemo_mqtt/monitoring/redis_checker.py
+python src/nemo_mqtt/monitoring/redis_checker.py
 ```
 
 #### **Signal Testing**
@@ -624,12 +624,12 @@ sequenceDiagram
 
 #### **Key Development Files**
 
-- **`nemo_mqtt/signals.py`**: Django signal handlers for MQTT events
-- **`nemo_mqtt/views.py`**: Web monitoring dashboard and API endpoints
-- **`nemo_mqtt/models.py`**: Database models for configuration and logging
-- **`nemo_mqtt/redis_mqtt_bridge.py`**: Redis-MQTT bridge service
-- **`nemo_mqtt/redis_publisher.py`**: Redis-based message publishing
-- **`templates/nemo_mqtt/monitor.html`**: Web monitoring dashboard UI
+- **`src/nemo_mqtt/signals.py`**: Django signal handlers for MQTT events
+- **`src/nemo_mqtt/views.py`**: Web monitoring dashboard and API endpoints
+- **`src/nemo_mqtt/models.py`**: Database models for configuration and logging
+- **`src/nemo_mqtt/redis_mqtt_bridge.py`**: Redis-MQTT bridge service
+- **`src/nemo_mqtt/redis_publisher.py`**: Redis-based message publishing
+- **`src/nemo_mqtt/templates/nemo_mqtt/monitor.html`**: Web monitoring dashboard UI
 
 ### Testing
 
@@ -663,10 +663,10 @@ pytest --cov=nemo_mqtt --cov-report=html
 python manage.py test_mqtt_api
 
 # Monitor MQTT messages in real-time
-python nemo_mqtt/monitoring/mqtt_monitor.py
+python src/nemo_mqtt/monitoring/mqtt_monitor.py
 
 # Test Redis connectivity
-python nemo_mqtt/monitoring/redis_checker.py
+python src/nemo_mqtt/monitoring/redis_checker.py
 
 # Run comprehensive tests
 python manage.py test nemo_mqtt
@@ -699,37 +699,37 @@ python manage.py test nemo_mqtt
 
 ```bash
 # Format code with Black
-black nemo_mqtt/
+black src/nemo_mqtt/
 
 # Sort imports with isort
-isort nemo_mqtt/
+isort src/nemo_mqtt/
 
 # Format all Python files
-find nemo_mqtt/ -name "*.py" -exec black {} \;
-find nemo_mqtt/ -name "*.py" -exec isort {} \;
+find src/nemo_mqtt/ -name "*.py" -exec black {} \;
+find src/nemo_mqtt/ -name "*.py" -exec isort {} \;
 ```
 
 #### **Linting**
 
 ```bash
 # Run flake8 linting
-flake8 nemo_mqtt/
+flake8 src/nemo_mqtt/
 
 # Run with specific configuration
-flake8 nemo_mqtt/ --max-line-length=100 --ignore=E203,W503
+flake8 src/nemo_mqtt/ --max-line-length=100 --ignore=E203,W503
 
 # Run pylint
-pylint nemo_mqtt/
+pylint src/nemo_mqtt/
 ```
 
 #### **Type Checking**
 
 ```bash
 # Run mypy type checking
-mypy nemo_mqtt/
+mypy src/nemo_mqtt/
 
 # Run with strict mode
-mypy nemo_mqtt/ --strict
+mypy src/nemo_mqtt/ --strict
 ```
 
 ### Debugging
@@ -786,14 +786,11 @@ LOGGING = {
 #### **Building Package**
 
 ```bash
-# Build source distribution
-python setup.py sdist
+# Install build tool
+pip install build
 
-# Build wheel distribution
-python setup.py bdist_wheel
-
-# Build both
-python setup.py sdist bdist_wheel
+# Build both sdist and wheel
+python -m build
 ```
 
 #### **Testing Package**
@@ -972,7 +969,7 @@ client.loop_forever()
 **Solution**:
 1. **Switch to EXTERNAL mode** (recommended for production):
    ```python
-   # In nemo_mqtt/apps.py, change line 82-83:
+   # In src/nemo_mqtt/apps.py, change line 82-83:
    from .redis_mqtt_bridge import RedisMQTTBridge
    mqtt_bridge = RedisMQTTBridge(auto_start=False)  # EXTERNAL mode
    ```
@@ -1060,7 +1057,7 @@ systemctl status nemo-mqtt
 3. Make your changes
 4. Add tests for new functionality
 5. Ensure all tests pass (`pytest`)
-6. Format code (`black nemo_mqtt/` and `isort nemo_mqtt/`)
+6. Format code (`black src/nemo_mqtt/` and `isort src/nemo_mqtt/`)
 7. Commit your changes (`git commit -m 'Add amazing feature'`)
 8. Push to the branch (`git push origin feature/amazing-feature`)
 9. Open a Pull Request

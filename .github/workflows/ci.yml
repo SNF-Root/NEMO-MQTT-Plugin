@@ -26,7 +26,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
         restore-keys: |
           ${{ runner.os }}-pip-
     
@@ -38,20 +38,20 @@ jobs:
     
     - name: Lint with flake8
       run: |
-        flake8 nemo_mqtt/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 nemo_mqtt/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+        flake8 src/nemo_mqtt/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 src/nemo_mqtt/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
     
     - name: Check code formatting with black
       run: |
-        black --check nemo_mqtt/
+        black --check src/nemo_mqtt/
     
     - name: Check import sorting with isort
       run: |
-        isort --check-only nemo_mqtt/
+        isort --check-only src/nemo_mqtt/
     
     - name: Type check with mypy
       run: |
-        mypy nemo_mqtt/ --ignore-missing-imports
+        mypy src/nemo_mqtt/ --ignore-missing-imports
     
     - name: Test with pytest
       run: |

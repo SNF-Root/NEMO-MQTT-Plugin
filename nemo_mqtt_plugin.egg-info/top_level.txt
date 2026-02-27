@@ -1,6 +1,0 @@
-dist
-docs
-htmlcov
-nemo_mqtt
-scripts
-tests

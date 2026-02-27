@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0", "wheel"]
+requires = ["setuptools>=77.0.3", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,6 +8,7 @@ version = "1.0.0"
 description = "MQTT integration plugin for NEMO tool usage events"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICEN[CS]E*"]
 authors = [
     {name = "SNF-Root", email = "alexdenton998@gmail.com"}
 ]
@@ -64,14 +65,17 @@ test = [
 Homepage = "https://github.com/SNF-Root/NEMO-MQTT-Plugin"
 Documentation = "https://github.com/SNF-Root/NEMO-MQTT-Plugin#readme"
 Repository = "https://github.com/SNF-Root/NEMO-MQTT-Plugin.git"
-"Bug Tracker" = "https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues"
+Issues = "https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues"
 Changelog = "https://github.com/SNF-Root/NEMO-MQTT-Plugin/blob/main/CHANGELOG.md"
 
 [project.scripts]
 nemo-mqtt-setup = "nemo_mqtt.management.commands.setup_nemo_integration:main"
 
 [tool.setuptools]
-packages = {find = {}}
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.setuptools.package-data]
 nemo_mqtt = [

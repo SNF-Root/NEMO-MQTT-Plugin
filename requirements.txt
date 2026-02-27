@@ -1,9 +1,0 @@
-# Core dependencies
-paho-mqtt>=1.6.1
-Django>=3.2
-redis>=4.0
-
-# Development dependencies (optional)
-pytest>=7.0.0
-pytest-django>=4.5.0
-pytest-cov>=4.0.0
