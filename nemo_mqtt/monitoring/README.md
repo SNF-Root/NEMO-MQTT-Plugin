@@ -31,15 +31,15 @@ python -m nemo_mqtt.monitoring.run_monitor test
 - **`redis_checker.py`** - Redis message checker
 - **`run_monitor.py`** - Runner with venv detection
 
-## 🌐 Web monitor (Redis stream)
+## Web monitor (Redis stream)
 
 The plugin’s web dashboard at **`/mqtt/monitor/`** shows a **stream of what NEMO publishes**: it reads from the Redis list `nemo_mqtt_monitor` (last 100 events). This is the same pipeline that the Redis–MQTT bridge consumes; the monitor does not subscribe to the MQTT broker, so you only see events emitted by this plugin. The page auto-refreshes every 3 seconds.
 
-## 🔧 Usage
+## Usage
 
 ### Full MQTT Monitor
 ```bash
-python3 NEMO/plugins/mqtt/monitoring/mqtt_monitor.py
+python -m nemo_mqtt.monitoring.mqtt_monitor
 ```
 - Connects to both Redis and MQTT broker
 - Subscribes to all `nemo/#` topics
@@ -48,7 +48,7 @@ python3 NEMO/plugins/mqtt/monitoring/mqtt_monitor.py
 
 ### Redis Checker
 ```bash
-python3 NEMO/plugins/mqtt/monitoring/redis_checker.py
+python -m nemo_mqtt.monitoring.redis_checker
 ```
 - Connects to Redis only
 - Shows current message count
@@ -57,14 +57,14 @@ python3 NEMO/plugins/mqtt/monitoring/redis_checker.py
 
 ### Test Signals
 ```bash
-python3 NEMO/plugins/mqtt/monitoring/../test_mqtt.py
+python manage.py test_mqtt_api
 ```
 - Tests MQTT plugin functionality
 - Creates test configuration
 - Emits test signals
 - Publishes test messages
 
-## ⚙️ Configuration Settings
+## Configuration Settings
 
 ### Keep Alive (seconds)
 
@@ -86,7 +86,7 @@ The **Keep Alive** setting (default: 60 seconds) controls how the MQTT client ma
 
 **Note**: Since the NEMO MQTT plugin publishes messages regularly (tool events, area events, etc.), the keep-alive interval primarily serves as a connection health check rather than the primary mechanism for maintaining connectivity.
 
-## 📡 Tool enable/disable: single source of truth (UsageEvent.post_save)
+## Tool enable/disable: single source of truth (UsageEvent.post_save)
 
 Tool “enable” and “disable” in NEMO (and nemo-ce) are **not** separate Django signals. They are:
 
@@ -107,11 +107,11 @@ The plugin uses **`UsageEvent.post_save`** as the **single source of truth** for
 
 All of these are emitted from the same **UsageEvent** handler, so you get consistent, instantaneous updates (same request as the NEMO enable/disable action).
 
-## 🧪 Testing Tool Enable/Disable
+## Testing Tool Enable/Disable
 
 1. **Start monitoring**:
    ```bash
-   ./monitor_mqtt.sh mqtt
+   python -m nemo_mqtt.monitoring.mqtt_monitor
    ```
 
 2. **Enable/disable a tool** in the NEMO web interface (e.g. “Enable” to start use, “Disable” / “Stop” to end use).
@@ -121,7 +121,7 @@ All of these are emitted from the same **UsageEvent** handler, so you get consis
    - On **disable**: `nemo/tools/{id}/disabled` only
    - MQTT will show the same if the bridge is running.
 
-## 🔍 What to Look For
+## What to Look For
 
 When you **enable** a tool (start use), you should see:
 
@@ -135,7 +135,7 @@ When you **disable** a tool (stop use), you should see:
 - Topic: `nemo/tools/2/disabled`
 - Payload includes: `"event": "tool_disabled"`, `tool_id`, `tool_name`, `usage_id`, `user_name`, `end_time`
 
-## 🚨 Troubleshooting
+## Troubleshooting
 
 If you don't see messages:
 
@@ -145,7 +145,7 @@ If you don't see messages:
 4. **Check Django logs** for signal handler errors
 5. **Verify MQTT plugin is enabled** in Django settings
 
-## 📋 Requirements
+## Requirements
 
 - Python 3.6+
 - Django (configured)

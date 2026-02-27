@@ -10,7 +10,6 @@ A comprehensive Django plugin that provides MQTT integration for NEMO tool usage
 
 ### **Easy Integration**
 - Simple Django plugin installation with automatic setup
-- One-command installation with `install_standalone.py`
 - Automatic Django configuration via management commands
 - Seamless integration with NEMO-CE
 
@@ -1037,7 +1036,6 @@ Scripts in `scripts/` for development and troubleshooting:
 - **`docs/HMAC.md`** – HMAC message authentication setup and verification
 - **`scripts/debug_hmac.py`** – Verify HMAC configuration and sign/verify test
 - **`scripts/check_bridge_status.py`** – Diagnose Redis-MQTT bridge (run from NEMO project root)
-- **`scripts/dev_reinstall.sh`** – Reinstall plugin into NEMO (development)
 
 ### Debug Commands
 
@@ -1082,10 +1080,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- 📖 [Documentation](https://github.com/SNF-Root/NEMO-MQTT-Plugin#readme)
-- 🐛 [Issue Tracker](https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues)
-- 💬 [Discussions](https://github.com/SNF-Root/NEMO-MQTT-Plugin/discussions)
-- 📧 [Email Support](mailto:support@example.com)
+- [Documentation](https://github.com/SNF-Root/NEMO-MQTT-Plugin#readme)
+- [Issue Tracker](https://github.com/SNF-Root/NEMO-MQTT-Plugin/issues)
+- [Discussions](https://github.com/SNF-Root/NEMO-MQTT-Plugin/discussions)
+- [Email Support](mailto:support@example.com)
 
 ## Changelog
 

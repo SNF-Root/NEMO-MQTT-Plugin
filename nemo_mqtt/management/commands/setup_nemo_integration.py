@@ -40,7 +40,7 @@ class Command(BaseCommand):
         install_package = options.get('install_package', False)
 
         self.stdout.write(
-            self.style.SUCCESS(f'🔧 Setting up NEMO MQTT Plugin integration in: {nemo_path}')
+            self.style.SUCCESS(f'Setting up NEMO MQTT Plugin integration in: {nemo_path}')
         )
 
         if install_package:
@@ -48,7 +48,7 @@ class Command(BaseCommand):
 
         # Check if we're in a NEMO installation
         if not self._is_nemo_installation(nemo_path):
-            raise CommandError(f'❌ {nemo_path} does not appear to be a NEMO installation')
+            raise CommandError(f'{nemo_path} does not appear to be a NEMO installation')
         
         success_count = 0
         
@@ -63,10 +63,10 @@ class Command(BaseCommand):
             success_count += 1
         
         self.stdout.write(
-            self.style.SUCCESS(f'\n🎉 Setup complete! Modified {success_count} files.')
+            self.style.SUCCESS(f'\nSetup complete! Modified {success_count} files.')
         )
         
-        self.stdout.write('\n📋 Next steps:')
+        self.stdout.write('\nNext steps:')
         self.stdout.write('1. Run migrations: python manage.py migrate nemo_mqtt')
         self.stdout.write('2. Start NEMO: python manage.py runserver')
         self.stdout.write('3. Configure MQTT at /customization/mqtt/')
@@ -74,14 +74,14 @@ class Command(BaseCommand):
     def _install_package(self):
         """Install the plugin via pip in editable mode"""
         plugin_dir = Path(__file__).resolve().parent.parent.parent.parent
-        self.stdout.write('📦 Installing Python package...')
+        self.stdout.write('Installing Python package...')
         try:
             subprocess.run(
                 [sys.executable, '-m', 'pip', 'install', '-e', str(plugin_dir)],
                 check=True,
                 capture_output=True,
             )
-            self.stdout.write(self.style.SUCCESS('✅ Package installed'))
+            self.stdout.write(self.style.SUCCESS('[OK] Package installed'))
         except subprocess.CalledProcessError as e:
             raise CommandError(f'pip install failed: {e.stderr.decode() if e.stderr else e}')
 
@@ -109,7 +109,7 @@ class Command(BaseCommand):
             with open(file_path, 'r') as original:
                 with open(backup_path, 'w') as backup:
                     backup.write(original.read())
-            self.stdout.write(f'✅ Created backup: {backup_path}')
+            self.stdout.write(f'[OK] Created backup: {backup_path}')
         return backup_path
 
     def _configure_settings_file(self, settings_file, create_backup):
@@ -131,12 +131,12 @@ class Command(BaseCommand):
                 new_content = content[:match.start(2)] + "    'nemo_mqtt',\n" + match.group(2)
                 with open(settings_file, 'w') as f:
                     f.write(new_content)
-                self.stdout.write(f'✅ Added nemo_mqtt to INSTALLED_APPS in {settings_file}')
+                self.stdout.write(f'[OK] Added nemo_mqtt to INSTALLED_APPS in {settings_file}')
                 modified = True
             else:
-                self.stdout.write(f'⚠️  Could not find INSTALLED_APPS in {settings_file}')
+                self.stdout.write(f'WARNING: Could not find INSTALLED_APPS in {settings_file}')
         else:
-            self.stdout.write(f'✅ nemo_mqtt already in INSTALLED_APPS in {settings_file}')
+            self.stdout.write(f'[OK] nemo_mqtt already in INSTALLED_APPS in {settings_file}')
             modified = True
         
         # Add logging configuration
@@ -156,7 +156,7 @@ class Command(BaseCommand):
                     
                     with open(settings_file, 'w') as f:
                         f.write(new_content)
-                    self.stdout.write(f'✅ Added MQTT logging to {settings_file}')
+                    self.stdout.write(f'[OK] Added MQTT logging to {settings_file}')
                     modified = True
         
         return modified
@@ -166,7 +166,7 @@ class Command(BaseCommand):
         urls_file = Path(nemo_path) / "NEMO" / "urls.py"
         
         if not urls_file.exists():
-            self.stdout.write(f'⚠️  Could not find NEMO/urls.py at {urls_file}')
+            self.stdout.write(f'WARNING: Could not find NEMO/urls.py at {urls_file}')
             return False
         
         if create_backup:
@@ -177,7 +177,7 @@ class Command(BaseCommand):
         
         # Check if already added
         if "nemo_mqtt.urls" in content:
-            self.stdout.write(f'✅ MQTT URLs already added to {urls_file}')
+            self.stdout.write(f'[OK] MQTT URLs already added to {urls_file}')
             return True
 
         # Add MQTT URLs
@@ -198,5 +198,5 @@ class Command(BaseCommand):
         with open(urls_file, 'w') as f:
             f.write(new_content)
         
-        self.stdout.write(f'✅ Added MQTT URLs to {urls_file}')
+        self.stdout.write(f'[OK] Added MQTT URLs to {urls_file}')
         return True

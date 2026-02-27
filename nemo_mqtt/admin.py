@@ -59,7 +59,7 @@ class MQTTConfigurationAdmin(admin.ModelAdmin):
                     return "Redis Disconnected"
             else:
                 return "Not Initialized"
-        except:
+        except Exception:
             return "Unknown"
     connection_status.short_description = "Connection Status"
 

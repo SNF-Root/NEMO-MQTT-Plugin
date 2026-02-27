@@ -8,7 +8,7 @@
 {% block extra_css %}
 <style>
     .monitor-container {
-        max-width: 1200px;
+        max-width: 1000px;
         margin: 0 auto;
         padding: 20px;
     }
@@ -17,11 +17,17 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        border-left: 4px solid #007bff;
+        margin-bottom: 15px;
+        padding: 12px 15px;
+        background: #2d2d2d;
+        border-radius: 6px;
+        color: #e0e0e0;
+    }
+    
+    .monitor-header h1 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
     }
     
     .monitor-controls {
@@ -32,10 +38,10 @@
     
     .status-indicator {
         display: inline-block;
-        width: 12px;
-        height: 12px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
-        margin-right: 8px;
+        margin-right: 6px;
     }
     
     .status-running {
@@ -53,539 +59,211 @@
         100% { opacity: 1; }
     }
     
-    .message-filters {
-        display: flex;
-        gap: 15px;
-        margin-bottom: 20px;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 8px;
-    }
-    
-    .filter-group {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-    }
-    
-    .filter-group label {
-        font-weight: 600;
-        font-size: 0.9em;
-        color: #495057;
-    }
-    
-    .filter-group select,
-    .filter-group input {
-        padding: 8px 12px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        font-size: 0.9em;
-    }
-    
-    .messages-container {
-        background: white;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    
-    .messages-header {
-        background: #e9ecef;
-        padding: 15px 20px;
-        border-bottom: 1px solid #dee2e6;
-        font-weight: 600;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-    
-    .message-count {
-        background: #007bff;
-        color: white;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.8em;
-    }
-    
-    .messages-list {
-        max-height: 600px;
+    .terminal-log {
+        background: #1e1e1e;
+        border: 1px solid #3d3d3d;
+        border-radius: 6px;
+        padding: 16px;
+        font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #d4d4d4;
+        max-height: 70vh;
         overflow-y: auto;
-    }
-    
-    .message-item {
-        padding: 15px 20px;
-        border-bottom: 1px solid #f1f3f4;
-    }
-    
-    .message-item:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .message-item:last-child {
-        border-bottom: none;
-    }
-    
-    .message-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-    
-    .message-source {
-        display: inline-block;
-        padding: 4px 8px;
-        border-radius: 12px;
-        font-size: 0.8em;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-    
-    .source-mqtt {
-        background-color: #d4edda;
-        color: #155724;
-    }
-    
-    .source-redis {
-        background-color: #d1ecf1;
-        color: #0c5460;
-    }
-    
-    .message-timestamp {
-        color: #6c757d;
-        font-size: 0.9em;
-    }
-    
-    .message-topic {
-        font-family: 'Courier New', monospace;
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 8px;
-        word-break: break-all;
-    }
-    
-    .message-payload {
-        background: #f8f9fa;
-        padding: 15px;
-        border-radius: 4px;
-        font-family: 'Courier New', monospace;
-        font-size: 0.9em;
         white-space: pre-wrap;
         word-break: break-word;
-        border-left: 3px solid #007bff;
-        max-height: 300px;
-        overflow-y: auto;
-        position: relative;
     }
     
-    .message-payload.json {
-        background: #f8f9fa;
-        border-left-color: #28a745;
+    .terminal-log .log-block {
+        margin-bottom: 1em;
     }
     
-    .message-payload.raw {
-        background: #fff3cd;
-        border-left-color: #ffc107;
+    .terminal-log .log-line {
+        margin: 0;
+        padding: 0;
     }
     
-    .payload-type {
-        position: absolute;
-        top: 5px;
-        right: 10px;
-        font-size: 0.7em;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-weight: bold;
-        text-transform: uppercase;
-    }
+    .terminal-log .log-line.topic { color: #9cdcfe; }
+    .terminal-log .log-line.data  { color: #ce9178; }
+    .terminal-log .log-line.qos   { color: #dcdcaa; }
+    .terminal-log .log-line.ok    { color: #4ec9b0; }
+    .terminal-log .log-line.next  { color: #808080; }
     
-    .payload-type.json {
-        background: #d4edda;
-        color: #155724;
-    }
-    
-    .payload-type.raw {
-        background: #fff3cd;
-        color: #856404;
-    }
-    
-    .json-key {
-        color: #0066cc;
-        font-weight: bold;
-    }
-    
-    .json-string {
-        color: #008800;
-    }
-    
-    .json-number {
-        color: #cc6600;
-    }
-    
-    .json-boolean {
-        color: #9900cc;
-        font-weight: bold;
-    }
-    
-    .json-null {
-        color: #999999;
+    .terminal-log .no-messages {
+        color: #808080;
         font-style: italic;
     }
     
-    .payload-content {
-        margin-top: 20px;
-        line-height: 1.4;
+    .messages-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 0.9em;
+        color: #808080;
     }
     
-    .message-payload.json .payload-content {
+    .message-count {
+        background: #3d3d3d;
+        color: #d4d4d4;
+        padding: 2px 8px;
+        border-radius: 4px;
         font-size: 0.85em;
     }
     
-    .message-payload.raw .payload-content {
-        font-size: 0.9em;
-    }
-    
-    .message-meta {
-        display: flex;
-        gap: 15px;
-        margin-top: 8px;
-        font-size: 0.8em;
-        color: #6c757d;
-    }
-    
-    .meta-item {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-    
-    .no-messages {
-        text-align: center;
-        padding: 40px;
-        color: #6c757d;
-    }
-    
     .btn {
-        padding: 8px 16px;
+        padding: 6px 14px;
         border: none;
         border-radius: 4px;
         cursor: pointer;
-        font-size: 0.9em;
+        font-size: 0.85em;
         font-weight: 500;
-        text-decoration: none;
-        display: inline-block;
-        transition: all 0.2s;
-    }
-    
-    .btn-primary {
-        background-color: #007bff;
+        background: #0e639c;
         color: white;
     }
     
-    .btn-primary:hover {
-        background-color: #0056b3;
+    .btn:hover {
+        background: #1177bb;
     }
-    
-    .btn-success {
-        background-color: #28a745;
-        color: white;
-    }
-    
-    .btn-success:hover {
-        background-color: #1e7e34;
-    }
-    
-    .btn-danger {
-        background-color: #dc3545;
-        color: white;
-    }
-    
-    .btn-danger:hover {
-        background-color: #c82333;
-    }
-    
-    .btn-secondary {
-        background-color: #6c757d;
-        color: white;
-    }
-    
-    .btn-secondary:hover {
-        background-color: #545b62;
-    }
-    
     
     .connection-status {
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 0.9em;
+        gap: 8px;
+        font-size: 0.85em;
+        color: #808080;
     }
     
-    .connection-item {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
+    .connection-ok { color: #4ec9b0; }
+    .connection-error { color: #f48771; }
     
-    .connection-ok {
-        color: #28a745;
+    .debug-toggle {
+        font-size: 0.8em;
+        color: #808080;
+        cursor: pointer;
+        user-select: none;
     }
-    
-    .connection-error {
-        color: #dc3545;
+    .debug-toggle:hover { color: #a0a0a0; }
+    #debug-info {
+        margin-top: 10px;
+        padding: 8px 12px;
+        background: #2d2d2d;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 11px;
+        color: #808080;
+        display: none;
     }
+    #debug-info.visible { display: block; }
 </style>
 {% endblock %}
 
 {% block content %}
 <script>
-// Move all the main JavaScript here since extra_js block isn't working
-console.log('=== Main JavaScript starting ===');
-
-// Global variables and functions
 let allMessages = [];
-let debugCounter = 0;
 let messagesList, debugLogElement, messageCount;
 
-// Debug logging function
-function debugLog(message) {
-    debugCounter++;
-    const timestamp = new Date().toLocaleTimeString();
-    const logEntry = `[${timestamp}] ${debugCounter}: ${message}`;
-    console.log(logEntry);
-    
-    // Add to debug display
-    const debugDiv = document.createElement('div');
-    debugDiv.textContent = logEntry;
-    debugLogElement.appendChild(debugDiv);
-    
-    // Keep only last 10 debug entries
-    const debugEntries = debugLogElement.children;
-    if (debugEntries.length > 10) {
-        debugLogElement.removeChild(debugEntries[0]);
-    }
-}
-
-// Fetch messages from API - make this global
 function fetchMessages() {
-    debugLog('fetchMessages() called');
     const url = '/mqtt/monitor/api/';
-    debugLog(`Fetching from URL: ${url}`);
-    
     fetch(url)
-    .then(response => {
-        debugLog(`API response status: ${response.status}`);
-        return response.json();
-    })
-    .then(data => {
-        debugLog(`API returned ${data.messages ? data.messages.length : 0} messages`);
-        debugLog(`Raw API data: ${JSON.stringify(data).substring(0, 200)}...`);
-        allMessages = data.messages || [];
-        debugLog(`allMessages now contains ${allMessages.length} messages`);
-        debugLog(`About to call displayMessages()...`);
-        displayMessages();
-        debugLog(`displayMessages() completed`);
-        updateConnectionStatus(data.monitoring);
-    })
-    .catch(error => {
-        debugLog(`Error fetching messages: ${error.message}`);
-        console.error('Error fetching messages:', error);
-        messagesList.innerHTML = '<div class="no-messages"><p>Error fetching messages.</p></div>';
-    });
+        .then(response => response.json())
+        .then(data => {
+            allMessages = data.messages || [];
+            displayMessages();
+            updateConnectionStatus(data.monitoring);
+            updateBrokerStatus(data.broker_connected);
+        })
+        .catch(error => {
+            console.error('Error fetching messages:', error);
+            if (messagesList) messagesList.innerHTML = '<div class="no-messages">Error fetching messages.</div>';
+        });
 }
 
-
-// Helper function to get CSRF token
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded event fired');
-    messagesList = document.getElementById('messages-list');
-    debugLogElement = document.getElementById('debug-log');
-    messageCount = document.getElementById('message-count');
-    
-    // Update JavaScript timestamp
-    const jsTimestamp = document.getElementById('js-timestamp');
-    if (jsTimestamp) {
-        jsTimestamp.textContent = new Date().toLocaleString();
-    }
-    
-    debugLog('Page loaded, initializing...');
-    debugLog('Version 12.0 - No Auto-Refresh, Stable Display');
-    debugLog('JavaScript is executing!');
-    
-    // Initial load
-    debugLog('Starting initial load (Redis stream)...');
-    fetchMessages();
-    
-    // Auto-refresh stream every 3 seconds
-    setInterval(fetchMessages, 3000);
-});
-
-// Global utility functions
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Pretty print JSON with syntax highlighting
-function prettyPrintJson(jsonString) {
-    try {
-        const parsed = JSON.parse(jsonString);
-        const pretty = JSON.stringify(parsed, null, 2);
-        return syntaxHighlight(pretty);
-    } catch (e) {
-        return escapeHtml(jsonString);
-    }
-}
-
-// Add syntax highlighting to JSON
-function syntaxHighlight(json) {
-    json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
-        let cls = 'json-number';
-        if (/^"/.test(match)) {
-            if (/:$/.test(match)) {
-                cls = 'json-key';
-            } else {
-                cls = 'json-string';
-            }
-        } else if (/true|false/.test(match)) {
-            cls = 'json-boolean';
-        } else if (/null/.test(match)) {
-            cls = 'json-null';
-        }
-        return '<span class="' + cls + '">' + match + '</span>';
-    });
-}
-
-// Format message payload for display
-function formatPayload(payload) {
-    // Try to detect if it's JSON
-    const trimmed = payload.trim();
-    if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || 
-        (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
-        return {
-            content: prettyPrintJson(payload),
-            type: 'json',
-            isJson: true
-        };
-    }
-    
-    // Check if it looks like JSON but might be malformed
-    if (trimmed.includes('{') || trimmed.includes('[')) {
-        try {
-            JSON.parse(payload);
-            return {
-                content: prettyPrintJson(payload),
-                type: 'json',
-                isJson: true
-            };
-        } catch (e) {
-            // Not valid JSON, treat as raw
-        }
-    }
-    
-    // Raw text
-    return {
-        content: escapeHtml(payload),
-        type: 'raw',
-        isJson: false
-    };
-}
-
-// Messages are from Redis stream (source === 'Redis')
-function filterMessages() {
-    const filtered = allMessages.filter(msg => msg.source === 'Redis' || !msg.source);
-    debugLog(`Filtered messages: ${filtered.length} from ${allMessages.length} total`);
-    return filtered;
-}
-
-// Display messages in a clean, human-readable format
-function displayMessages() {
-    try {
-        debugLog('displayMessages() called');
-        const filteredMessages = filterMessages();
-        
-        if (filteredMessages.length === 0) {
-            debugLog('No messages to display, showing empty state');
-            messagesList.innerHTML = '<div class="no-messages"><p>No messages in stream yet. Events published by NEMO will appear here.</p></div>';
-            messageCount.textContent = '0';
-            return;
-        }
-        
-        // Show last 10 MQTT messages, most recent first
-        const messagesToShow = filteredMessages.slice(-10).reverse();
-        debugLog(`Displaying ${messagesToShow.length} messages (last 10)`);
-        
-        const html = messagesToShow.map((msg, index) => {
-            const timestamp = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '—';
-            const payloadInfo = formatPayload(msg.payload);
-            
-            debugLog(`Message ${index + 1}: ${msg.topic} at ${timestamp}`);
-            
-            return `
-                <div class="message-item" data-message-id="${msg.id || index}">
-                    <div class="message-header">
-                        <span class="message-source source-redis">Redis</span>
-                        <span class="message-timestamp">${timestamp}</span>
-                    </div>
-                    <div class="message-topic">${escapeHtml(msg.topic || '')}</div>
-                    <div class="message-payload ${payloadInfo.type}">
-                        <div class="payload-content">${payloadInfo.content}</div>
-                    </div>
-                </div>
-            `;
-        }).join('');
-        
-        debugLog(`Setting innerHTML with ${messagesToShow.length} messages`);
-        debugLog(`HTML length: ${html.length} characters`);
-        messagesList.innerHTML = html;
-        messageCount.textContent = messagesToShow.length;
-        debugLog('HTML updated successfully');
-    } catch (error) {
-        debugLog(`ERROR in displayMessages(): ${error.message}`);
-        console.error('Error in displayMessages:', error);
-        messagesList.innerHTML = '<div class="no-messages"><p>Error displaying messages.</p></div>';
-    }
-}
-
-// Update connection status (monitoring = stream available)
 function updateConnectionStatus(monitoring) {
     const el = document.getElementById('mqtt-status');
     if (!el) return;
     el.className = monitoring ? 'status-indicator status-running' : 'status-indicator status-stopped';
 }
 
-console.log('=== Main JavaScript loaded ===');
+function updateBrokerStatus(broker_connected) {
+    const el = document.getElementById('broker-status');
+    if (!el) return;
+    const badge = broker_connected === 'connected'
+        ? '<span class="badge badge-success">Connected</span>'
+        : broker_connected === 'disconnected'
+            ? '<span class="badge badge-danger">Disconnected</span>'
+            : '<span class="badge badge-secondary">Unknown</span>';
+    el.innerHTML = badge;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function prettyPrintJson(jsonString) {
+    try {
+        const parsed = JSON.parse(jsonString);
+        return escapeHtml(JSON.stringify(parsed, null, 2));
+    } catch (e) {
+        return escapeHtml(jsonString);
+    }
+}
+
+// Display each message as terminal-style block (same as signals.py print output)
+function displayMessages() {
+    if (!messagesList) return;
+    const filtered = allMessages.filter(msg => msg.source === 'Redis' || !msg.source);
+    
+    if (filtered.length === 0) {
+        messagesList.innerHTML = '<div class="no-messages">No messages yet. Events published by NEMO will appear here (same as terminal).</div>';
+        if (messageCount) messageCount.textContent = '0';
+        return;
+    }
+    
+    const messagesToShow = filtered.slice(0, 50);  // 50 most recent (API returns newest first)
+    const html = messagesToShow.map((msg, index) => {
+        const topic = escapeHtml(msg.topic || '');
+        const dataPretty = prettyPrintJson(msg.payload || '{}');
+        const dataLines = dataPretty.split('\n').map((line, i) => i === 0 ? line : '   ' + line).join('\n');
+        return '<div class="log-block">' +
+            '<div class="log-line topic">   Topic: ' + topic + '</div>' +
+            '<div class="log-line data">   Data: ' + dataLines + '</div>' +
+            '</div>';
+    }).join('');
+    
+    messagesList.innerHTML = html;
+    if (messageCount) messageCount.textContent = messagesToShow.length;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    messagesList = document.getElementById('messages-list');
+    debugLogElement = document.getElementById('debug-log');
+    messageCount = document.getElementById('message-count');
+    
+    fetchMessages();
+    setInterval(fetchMessages, 3000);
+    
+    const debugToggle = document.getElementById('debug-toggle');
+    const debugInfo = document.getElementById('debug-info');
+    if (debugToggle && debugInfo) {
+        debugToggle.addEventListener('click', function() {
+            debugInfo.classList.toggle('visible');
+        });
+    }
+});
 </script>
 <div class="monitor-container">
     <div class="monitor-header">
         <h1>{{ title }}</h1>
         <div class="monitor-controls">
-            <button class="btn btn-primary" onclick="fetchMessages()">Refresh</button>
             <div class="connection-status">
-                <span class="status-indicator status-running" id="mqtt-status" title="Stream from Redis"></span>
-                <span class="connection-item connection-ok">Redis stream</span>
+                <span class="status-indicator status-running" id="mqtt-status" title="Redis stream"></span>
             </div>
         </div>
     </div>
     
-    <!-- MQTT Configuration Display -->
     {% if mqtt_config %}
     <div class="alert alert-info mb-3">
         <h5><i class="fas fa-cog"></i> MQTT Configuration</h5>
@@ -608,12 +286,22 @@ console.log('=== Main JavaScript loaded ===');
                 {% else %}
                     <span class="badge badge-secondary">None</span>
                 {% endif %}<br>
-                <strong>Status:</strong> 
+                <strong>Config:</strong> 
                 {% if mqtt_config.enabled %}
                     <span class="badge badge-success">Active</span>
                 {% else %}
                     <span class="badge badge-danger">Disabled</span>
+                {% endif %}<br>
+                <strong>Broker:</strong> 
+                <span id="broker-status">
+                {% if broker_connected == 'connected' %}
+                    <span class="badge badge-success">Connected</span>
+                {% elif broker_connected == 'disconnected' %}
+                    <span class="badge badge-danger">Disconnected</span>
+                {% else %}
+                    <span class="badge badge-secondary">Unknown</span>
                 {% endif %}
+                </span>
             </div>
         </div>
     </div>
@@ -624,22 +312,15 @@ console.log('=== Main JavaScript loaded ===');
     </div>
     {% endif %}
     
-    <div class="messages-container">
-        <div class="messages-header">
-            <span>NEMO → Redis stream (last 100)</span>
-            <span class="message-count" id="message-count">0</span>
-        </div>
-        <div class="messages-list" id="messages-list">
-        </div>
-        <div id="debug-info" style="background: #f8f9fa; padding: 10px; border-top: 1px solid #dee2e6; font-family: monospace; font-size: 12px;">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                <div>Debug Info:</div>
-                <div style="color: #007bff; font-weight: bold;">Version: 63.0(can you believe it?)- {{ "now"|date:"Y-m-d H:i:s" }} - {{ request.META.HTTP_HOST }}{{ request.META.SERVER_PORT }}</div>
-                <div style="color: #28a745; font-size: 11px;">JS Time: <span id="js-timestamp"></span></div>
-            </div>
-            <div id="debug-log"></div>
-        </div>
+    <div class="messages-header">
+        <h2 style="font-size: 2rem; font-weight: 700; margin-bottom: 0.7em;">
+            Latest 50 Events <span style="font-size: 1.2rem; font-weight: 400;">(refreshes every 3s)</span>
+        </h2>
+
     </div>
+    <div class="terminal-log" id="messages-list"></div>
+    <div class="debug-toggle" id="debug-toggle">▼ Debug</div>
+    <div id="debug-info"><div id="debug-log"></div></div>
 </div>
 {% endblock %}
 

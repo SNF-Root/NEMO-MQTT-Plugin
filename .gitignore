@@ -202,15 +202,15 @@ INSTALLATION.md
 NEMO_CE_SETUP_CHECKLIST.md
 initialization_diagram.md
 
-# Test files (will be organized in tests/ directory)
-test_*.py
-*_test.py
-simple_test.py
-test_flow.py
-test_message_flow.py
-test_monitor_*.py
-test_direct_mqtt.py
-test_api.py
+# Test files at the project root (tests/ package is kept)
+/test_*.py
+/*_test.py
+/simple_test.py
+/test_flow.py
+/test_message_flow.py
+/test_monitor_*.py
+/test_direct_mqtt.py
+/test_api.py
 
 # Standalone scripts (development only)
 comprehensive_flow_monitor.py

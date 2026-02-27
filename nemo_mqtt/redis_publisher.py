@@ -18,6 +18,8 @@ EVENTS_LIST_KEY = 'nemo_mqtt_events'
 MONITOR_LIST_KEY = 'nemo_mqtt_monitor'
 MONITOR_LIST_MAXLEN = 100
 BRIDGE_CONTROL_KEY = 'nemo_mqtt_bridge_control'
+BRIDGE_STATUS_KEY = 'nemo_mqtt_bridge_status'
+BRIDGE_STATUS_TTL = 90  # seconds; if bridge dies, status expires
 
 
 class RedisMQTTPublisher:
@@ -151,6 +153,26 @@ class RedisMQTTPublisher:
             return True
         except Exception:
             return False
+
+    def get_bridge_status(self) -> Optional[str]:
+        """
+        Return the Redis-MQTT bridge status from Redis: "connected", "disconnected", or None (unknown).
+        The bridge writes this key when it connects/disconnects from the broker.
+        """
+        if not self.redis_client:
+            return None
+        try:
+            self.redis_client.ping()
+        except Exception:
+            return None
+        try:
+            value = self.redis_client.get(BRIDGE_STATUS_KEY)
+            if value in ("connected", "disconnected"):
+                return value
+        except Exception:
+            pass
+        return None
+
 
 # Global instance
 redis_publisher = RedisMQTTPublisher()

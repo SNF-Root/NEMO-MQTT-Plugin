@@ -67,15 +67,14 @@ class MQTTSignalHandler:
         import uuid
         signal_id = str(uuid.uuid4())[:8]
         
-        print(f"\n🔍 [SIGNAL-{signal_id}] Django Signal → Redis Publisher")
-        print(f"   📍 Topic: {topic}")
-        print(f"   📦 Data: {json.dumps(data, indent=2)}")
+        print(f"\n[SIGNAL-{signal_id}] Django Signal → Redis Publisher")
+        print(f"   Topic: {topic}")
+        print(f"   Data: {json.dumps(data, indent=2)}")
         
         if self.redis_publisher:
             try:
                 # Get MQTT configuration for QoS and retain settings
                 config = self._get_mqtt_config()
-                print(f"   🔧 Using QoS: {config.qos_level}, Retain: {config.retain_messages}")
                 
                 success = self.redis_publisher.publish_event(
                     topic, 
@@ -84,25 +83,24 @@ class MQTTSignalHandler:
                     retain=config.retain_messages
                 )
                 if success:
-                    print(f"✅ [SIGNAL-{signal_id}] Successfully published to Redis")
-                    print(f"   📤 Message sent to Redis list 'nemo_mqtt_events'")
-                    print(f"   🔄 Next: Standalone service will consume from Redis")
+                    print(f"[OK] [SIGNAL-{signal_id}] Successfully published to Redis")
+                    print(f"   Message sent to Redis list 'nemo_mqtt_events'")
                     logger.info(f"Successfully published to Redis: {topic}")
                 else:
-                    print(f"❌ [SIGNAL-{signal_id}] Failed to publish to Redis")
+                    print(f"[ERROR] [SIGNAL-{signal_id}] Failed to publish to Redis")
                     logger.error(f"Failed to publish to Redis: {topic}")
             except Exception as e:
-                print(f"❌ [SIGNAL-{signal_id}] Exception publishing to Redis: {e}")
+                print(f"[ERROR] [SIGNAL-{signal_id}] Exception publishing to Redis: {e}")
                 logger.error(f"Failed to publish MQTT message via Redis: {e}")
         else:
-            print(f"❌ [SIGNAL-{signal_id}] Redis publisher not available")
+            print(f"[ERROR] [SIGNAL-{signal_id}] Redis publisher not available")
             logger.warning("Redis publisher not available")
 
 
 # Global signal handler instance
-print("🔧 Initializing MQTT Signal Handler...")
+print("Initializing MQTT Signal Handler...")
 signal_handler = MQTTSignalHandler()
-print(f"🔧 MQTT Signal Handler initialized: {id(signal_handler)}")
+print(f"MQTT Signal Handler initialized: {id(signal_handler)}")
 
 
 # Only register signal handlers if NEMO is available
@@ -113,7 +111,7 @@ if NEMO_AVAILABLE:
         """Signal handler for tool save events"""
         import uuid
         signal_id = str(uuid.uuid4())[:8]
-        print(f"\n🔍 [TOOL-SIGNAL-{signal_id}] Tool save event triggered")
+        print(f"\n[TOOL-SIGNAL-{signal_id}] Tool save event triggered")
         print(f"   Tool: {instance.name} (ID: {instance.id})")
         print(f"   Created: {created}")
         print(f"   Operational: {instance.operational}")
@@ -127,10 +125,10 @@ if NEMO_AVAILABLE:
                 "tool_status": instance.operational,
                 "timestamp": instance._state.adding
             }
-            print(f"🔍 [TOOL-SIGNAL-{signal_id}] Publishing tool_{action} event...")
+            print(f"[TOOL-SIGNAL-{signal_id}] Publishing tool_{action} event...")
             signal_handler.publish_message(f"nemo/tools/{instance.id}", data)
         else:
-            print(f"❌ [TOOL-SIGNAL-{signal_id}] Redis publisher not available")
+            print(f"[ERROR] [TOOL-SIGNAL-{signal_id}] Redis publisher not available")
 
     @receiver(post_save, sender=Area)
     def area_saved(sender, instance, created, **kwargs):

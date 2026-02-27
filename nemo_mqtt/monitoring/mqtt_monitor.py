@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
 MQTT Message Monitor
+
 This script monitors both Redis and MQTT messages to help debug the MQTT plugin.
+Run it from your NEMO project root with a valid DJANGO_SETTINGS_MODULE, for example:
+
+    export DJANGO_SETTINGS_MODULE=settings_dev  # or your NEMO settings module
+    python -m nemo_mqtt.monitoring.mqtt_monitor
 """
 
 import os
@@ -52,10 +57,10 @@ class MQTTMonitor:
                 decode_responses=True
             )
             self.redis_client.ping()
-            print("✅ Connected to Redis")
+            print("[OK] Connected to Redis")
             return True
         except Exception as e:
-            print(f"❌ Failed to connect to Redis: {e}")
+            print(f"[ERROR] Failed to connect to Redis: {e}")
             return False
     
     def connect_mqtt(self):
@@ -70,18 +75,18 @@ class MQTTMonitor:
             self.mqtt_client.loop_start()
             return True
         except Exception as e:
-            print(f"❌ Failed to connect to MQTT broker: {e}")
+            print(f"[ERROR] Failed to connect to MQTT broker: {e}")
             return False
     
     def on_mqtt_connect(self, client, userdata, flags, rc):
         """MQTT connection callback"""
         if rc == 0:
-            print("✅ Connected to MQTT broker")
+            print("[OK] Connected to MQTT broker")
             # Subscribe to all NEMO topics
             client.subscribe("nemo/#")
-            print("📡 Subscribed to nemo/# topics")
+            print("Subscribed to nemo/# topics")
         else:
-            print(f"❌ MQTT connection failed with code {rc}")
+            print(f"[ERROR] MQTT connection failed with code {rc}")
     
     def on_mqtt_message(self, client, userdata, msg):
         """MQTT message callback"""
@@ -96,22 +101,22 @@ class MQTTMonitor:
             }
             
             self.mqtt_messages.append(message_data)
-            print(f"\n🔔 MQTT Message Received:")
+            print(f"\nMQTT Message Received:")
             print(f"   Topic: {msg.topic}")
             print(f"   Payload: {payload}")
             print(f"   Time: {message_data['timestamp']}")
             print("-" * 50)
             
         except Exception as e:
-            print(f"❌ Error processing MQTT message: {e}")
+            print(f"[ERROR] Error processing MQTT message: {e}")
     
     def on_mqtt_disconnect(self, client, userdata, rc):
         """MQTT disconnection callback"""
-        print(f"⚠️  MQTT disconnected with code {rc}")
+        print(f"WARNING: MQTT disconnected with code {rc}")
     
     def monitor_redis(self):
         """Monitor Redis for new messages"""
-        print("🔍 Monitoring Redis for messages...")
+        print("Monitoring Redis for messages...")
         
         while self.running:
             try:
@@ -130,33 +135,33 @@ class MQTTMonitor:
                         }
                         
                         self.redis_messages.append(redis_message)
-                        print(f"\n📨 Redis Message Received:")
+                        print(f"\nRedis Message Received:")
                         print(f"   Topic: {redis_message['topic']}")
                         print(f"   Payload: {redis_message['payload']}")
                         print(f"   Time: {redis_message['timestamp']}")
                         print("-" * 50)
                         
                     except json.JSONDecodeError as e:
-                        print(f"❌ Error parsing Redis message: {e}")
+                        print(f"[ERROR] Error parsing Redis message: {e}")
                         print(f"   Raw message: {message}")
                 
                 time.sleep(0.1)  # Small delay to prevent excessive CPU usage
                 
             except Exception as e:
-                print(f"❌ Error monitoring Redis: {e}")
+                print(f"[ERROR] Error monitoring Redis: {e}")
                 time.sleep(1)
     
     def show_summary(self):
         """Show summary of captured messages"""
         print("\n" + "="*60)
-        print("📊 MESSAGE SUMMARY")
+        print("MESSAGE SUMMARY")
         print("="*60)
         
-        print(f"\n📨 Redis Messages: {len(self.redis_messages)}")
+        print(f"\nRedis Messages: {len(self.redis_messages)}")
         for i, msg in enumerate(self.redis_messages[-5:], 1):  # Show last 5
             print(f"   {i}. {msg['timestamp']} - {msg['topic']}")
         
-        print(f"\n🔔 MQTT Messages: {len(self.mqtt_messages)}")
+        print(f"\nMQTT Messages: {len(self.mqtt_messages)}")
         for i, msg in enumerate(self.mqtt_messages[-5:], 1):  # Show last 5
             print(f"   {i}. {msg['timestamp']} - {msg['topic']}")
         
@@ -164,7 +169,7 @@ class MQTTMonitor:
     
     def run(self):
         """Run the monitor"""
-        print("🚀 Starting MQTT Message Monitor")
+        print("Starting MQTT Message Monitor")
         print("="*60)
         
         # Connect to Redis
@@ -175,7 +180,7 @@ class MQTTMonitor:
         if not self.connect_mqtt():
             return
         
-        print("\n📋 Instructions:")
+        print("\nInstructions:")
         print("1. Enable/disable a tool in NEMO")
         print("2. Watch for Redis and MQTT messages below")
         print("3. Press Ctrl+C to stop monitoring")
@@ -192,7 +197,7 @@ class MQTTMonitor:
             self.running = False
         
         self.show_summary()
-        print("\n👋 Monitor stopped")
+        print("\nMonitor stopped")
 
 def main():
     monitor = MQTTMonitor()

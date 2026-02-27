@@ -42,7 +42,7 @@ except ImportError:
 
 try:
     from nemo_mqtt.connection_manager import ConnectionManager
-    from nemo_mqtt.redis_publisher import EVENTS_LIST_KEY, BRIDGE_CONTROL_KEY
+    from nemo_mqtt.redis_publisher import EVENTS_LIST_KEY, BRIDGE_CONTROL_KEY, BRIDGE_STATUS_KEY, BRIDGE_STATUS_TTL
     from nemo_mqtt.bridge.process_lock import acquire_lock, release_lock
     from nemo_mqtt.bridge.auto_services import (
         cleanup_existing_services,
@@ -52,7 +52,7 @@ try:
     from nemo_mqtt.bridge.mqtt_connection import connect_mqtt
 except ImportError:
     from NEMO.plugins.nemo_mqtt.connection_manager import ConnectionManager
-    from NEMO.plugins.nemo_mqtt.redis_publisher import EVENTS_LIST_KEY, BRIDGE_CONTROL_KEY
+    from NEMO.plugins.nemo_mqtt.redis_publisher import EVENTS_LIST_KEY, BRIDGE_CONTROL_KEY, BRIDGE_STATUS_KEY, BRIDGE_STATUS_TTL
     from NEMO.plugins.nemo_mqtt.bridge.process_lock import acquire_lock, release_lock
     from NEMO.plugins.nemo_mqtt.bridge.auto_services import (
         cleanup_existing_services,
@@ -94,6 +94,7 @@ class RedisMQTTBridge:
         self._last_reconnecting_log_time = 0
         self._reconnecting_log_interval = 15
         self._mqtt_has_connected_before = False
+        self._last_bridge_status_write = 0  # refresh "connected" in Redis for monitor
 
         # MQTT connection manager created in _initialize_mqtt() from config (max_retries, reconnect_delay)
         self.mqtt_connection_mgr = None
@@ -197,17 +198,20 @@ class RedisMQTTBridge:
 
     def _on_connect(self, client, userdata, flags, rc):
         if rc == 0:
+            self._write_bridge_status('connected')
             if self._mqtt_has_connected_before:
                 logger.info("Successfully reconnected to MQTT broker at %s:%s", self.broker_host, self.broker_port)
             else:
                 logger.info("Connected to MQTT broker at %s:%s", self.broker_host, self.broker_port)
                 self._mqtt_has_connected_before = True
         else:
+            self._write_bridge_status('disconnected')
             errors = {1: "protocol", 2: "client id", 3: "unavailable", 4: "bad auth", 5: "unauthorized"}
             logger.error("MQTT connection failed: %s (rc=%s)", errors.get(rc, rc), rc)
 
     def _on_disconnect(self, client, userdata, rc):
         self.last_disconnect_time = time.time()
+        self._write_bridge_status('disconnected')
         if rc != 0:
             now = time.time()
             rc_changed = self._last_disconnect_rc != rc
@@ -219,6 +223,16 @@ class RedisMQTTBridge:
 
     def _on_publish(self, client, userdata, mid):
         logger.debug("Published mid=%s", mid)
+
+    def _write_bridge_status(self, status: str):
+        """Write bridge connection status to Redis for the monitor page."""
+        if status not in ('connected', 'disconnected'):
+            return
+        try:
+            if self.redis_client:
+                self.redis_client.setex(BRIDGE_STATUS_KEY, BRIDGE_STATUS_TTL, status)
+        except Exception as e:
+            logger.debug("Could not write bridge status to Redis: %s", e)
 
     def _ensure_mqtt_connected(self):
         if self.mqtt_client and self.mqtt_client.is_connected():
@@ -253,6 +267,11 @@ class RedisMQTTBridge:
                 if not self._ensure_mqtt_connected():
                     time.sleep(5)
                     continue
+                # Refresh "connected" status in Redis so monitor page stays up to date (TTL 90s)
+                now = time.time()
+                if (now - self._last_bridge_status_write) >= 30:
+                    self._write_bridge_status('connected')
+                    self._last_bridge_status_write = now
                 try:
                     self.redis_client.ping()
                 except Exception as e:

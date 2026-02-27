@@ -40,7 +40,7 @@ def run_script(script_name, args=None):
     script_path = script_dir / script_name
     
     if not script_path.exists():
-        print(f"❌ Script not found: {script_path}")
+        print(f"[ERROR] Script not found: {script_path}")
         return False
     
     python_exe = get_python_executable()
@@ -50,17 +50,17 @@ def run_script(script_name, args=None):
     if args:
         cmd.extend(args)
     
-    print(f"🚀 Running: {' '.join(cmd)}")
+    print(f"Running: {' '.join(cmd)}")
     print("=" * 60)
     
     try:
         result = subprocess.run(cmd, cwd=Path.cwd())
         return result.returncode == 0
     except KeyboardInterrupt:
-        print("\n👋 Interrupted by user")
+        print("\nInterrupted by user")
         return True
     except Exception as e:
-        print(f"❌ Error running script: {e}")
+        print(f"[ERROR] Error running script: {e}")
         return False
 
 def main():
@@ -78,22 +78,22 @@ def main():
     
     args = parser.parse_args()
     
-    print("🔧 MQTT Plugin Monitoring Tools")
+    print("MQTT Plugin Monitoring Tools")
     print("=" * 40)
     
     # Check if we're in the right directory
     if not (Path.cwd() / "manage.py").exists():
-        print("❌ Please run this script from the NEMO project root directory")
+        print("[ERROR] Please run this script from the NEMO project root directory")
         return 1
     
     # Find and display Python environment
     venv_path = find_venv()
     if venv_path:
-        print(f"✅ Using virtual environment: {venv_path}")
+        print(f"[OK] Using virtual environment: {venv_path}")
     else:
-        print("⚠️  No virtual environment found, using system Python")
+        print("WARNING: No virtual environment found, using system Python")
     
-    print(f"🐍 Python executable: {get_python_executable()}")
+    print(f"Python executable: {get_python_executable()}")
     print()
     
     # Run the appropriate tool
@@ -106,19 +106,19 @@ def main():
         cmd = [python_exe, "manage.py", "test_mqtt_api"]
         if args.args:
             cmd.extend(args.args)
-        print(f"🚀 Running: {' '.join(cmd)}")
+        print(f"Running: {' '.join(cmd)}")
         print("=" * 60)
         try:
             result = subprocess.run(cmd, cwd=Path.cwd())
             success = result.returncode == 0
         except KeyboardInterrupt:
-            print("\n👋 Interrupted by user")
+            print("\nInterrupted by user")
             success = True
         except Exception as e:
-            print(f"❌ Error: {e}")
+            print(f"[ERROR] Error: {e}")
             success = False
     else:
-        print(f"❌ Unknown tool: {args.tool}")
+        print(f"[ERROR] Unknown tool: {args.tool}")
         return 1
     
     return 0 if success else 1

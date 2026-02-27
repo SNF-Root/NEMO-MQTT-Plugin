@@ -6,8 +6,13 @@ from NEMO.views.customization import CustomizationBase
 from .models import MQTTConfiguration, MQTTMessageLog, MQTTEventFilter
 
 
-def _print_config_to_terminal(config, broker_password=False, hmac_key_set=False):
-    """Print current MQTT configuration to stdout for verification (TESTING: sensitive values shown)."""
+def _print_config_to_terminal(config, broker_password: bool = False, hmac_key_set: bool = False) -> None:
+    """Print current MQTT configuration to stdout for verification (sensitive values masked).
+
+    The actual broker password and HMAC secret key are never printed; only whether they are set.
+    """
+    password_display = "***" if config.password else "(not set)"
+    hmac_display = "***" if config.hmac_secret_key else "(not set)"
     lines = [
         "",
         "--- MQTT configuration saved ---",
@@ -18,9 +23,9 @@ def _print_config_to_terminal(config, broker_password=False, hmac_key_set=False)
         f"  keepalive: {config.keepalive}",
         f"  client_id: {config.client_id}",
         f"  username: {config.username or '(not set)'}",
-        f"  password: {config.password or '(not set)'}",
+        f"  password: {password_display}",
         f"  use_hmac: {config.use_hmac}",
-        f"  hmac_secret_key: {config.hmac_secret_key or '(not set)'}",
+        f"  hmac_secret_key: {hmac_display}",
         "  hmac_algorithm: sha256 (fixed)",
         f"  topic_prefix: {config.topic_prefix}",
         f"  qos_level: {config.qos_level}",
