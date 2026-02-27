@@ -2,7 +2,8 @@
 """
 Quick diagnostic script to check Redis-MQTT Bridge status
 
-Usage (from project root or NEMO project root):
+Usage (from project root or NEMO project root, with a valid NEMO settings module):
+    export DJANGO_SETTINGS_MODULE=settings      # or your NEMO settings module
     python scripts/check_bridge_status.py
 """
 import redis

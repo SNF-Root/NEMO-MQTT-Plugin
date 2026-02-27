@@ -5,7 +5,8 @@ HMAC configuration debug script for NEMO MQTT Plugin.
 Prints current HMAC and broker settings (no secrets). Use to verify
 configuration is loaded correctly.
 
-Usage (from project root or NEMO project root):
+Usage (from project root or NEMO project root, with a valid NEMO settings module):
+    export DJANGO_SETTINGS_MODULE=settings_dev  # or your NEMO settings module
     python scripts/debug_hmac.py
 """
 
